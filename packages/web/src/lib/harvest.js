@@ -9,6 +9,7 @@
 import {
   SorobanClient,
   addressToScVal,
+  bytesN,
   claimToScVal,
   fromStroops,
   i128,
@@ -96,6 +97,8 @@ export async function createCampaign({
       i128(toStroops(targetUsdc)),
       u64(deadline),
       u32(Math.round(returnPercent * 100)),
+      // All or nothing, as this older UI expects.
+      u32(10_000),
     ],
     source: address,
     sign,
@@ -209,4 +212,59 @@ export async function anchorWithdraw({ address, challengeSigner, amountUsdc }) {
     await anchor.authenticate(address, challengeSigner);
   }
   return anchor.startWithdraw({ amount: amountUsdc });
+}
+
+// ------------------------------------------------------------------- vault --
+
+/**
+ * Live vault figures, read from the deployed vault.
+ *
+ * Deliberately *not* an invented TVL or APY. `fetch_total_managed_funds` and
+ * `price_per_share` are what the contract actually holds right now, so an empty
+ * vault reports zero rather than a decorative number. The vault is our local
+ * twin of DeFindex's `VaultTrait` -- see README §5 -- and the UI says so.
+ */
+export async function vaultStats(source) {
+  const [managed, pricePerShare, totalShares, accrued] = await Promise.all([
+    soroban.read({
+      contractId: deployments.vault,
+      method: "fetch_total_managed_funds",
+      args: [],
+      source,
+    }),
+    soroban.read({ contractId: deployments.vault, method: "price_per_share", args: [], source }),
+    soroban.read({ contractId: deployments.vault, method: "total_shares", args: [], source }),
+    soroban.read({ contractId: deployments.vault, method: "accrued_yield", args: [], source }),
+  ]);
+
+  const managedTotal = Array.isArray(managed)
+    ? managed.reduce((sum, v) => sum + fromStroops(v), 0)
+    : fromStroops(managed ?? 0);
+
+  return {
+    managedUsdc: managedTotal,
+    // price_per_share is itself scaled by 1e7, so 1.0 means "no yield yet".
+    pricePerShare: fromStroops(pricePerShare ?? 0),
+    totalShares: fromStroops(totalShares ?? 0),
+    accruedUsdc: fromStroops(accrued ?? 0),
+  };
+}
+
+/** The anonymous repayment tier behind a nullifier, and what it prices at. */
+export async function reputationOf(nullifierHex, source) {
+  const [tier, rateBps] = await Promise.all([
+    soroban.read({
+      contractId: deployments.campaign,
+      method: "reputation_of",
+      args: [bytesN(nullifierHex)],
+      source,
+    }),
+    soroban.read({
+      contractId: deployments.campaign,
+      method: "quoted_rate_bps",
+      args: [bytesN(nullifierHex)],
+      source,
+    }),
+  ]);
+  return { tier: Number(tier ?? 0), ratePercent: Number(rateBps ?? 0) / 100 };
 }

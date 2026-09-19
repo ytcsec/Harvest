@@ -33,7 +33,7 @@ things that only became clear after they broke.
                      │ verify_capacity (reverts if false)
                      ▼
         ┌──────────────────────────┐        ┌────────────────────────┐
-        │   HarvestCampaign        │───────►│  vault (DeFindex ABI)  │
+        │   HarvestCampaign        │───────►│  DeFindex vault        │
         │   nullifier registry     │◄───────│  deposit / withdraw    │
         │   pull-based settlement  │        └────────────────────────┘
         │   anonymous reputation   │
@@ -41,7 +41,7 @@ things that only became clear after they broke.
                      │ USDC
                      ▼
         ┌──────────────────────────┐
-        │  TR anchor  SEP-6/10/38  │  ⇄  Turkish lira / IBAN
+        │  TR anchor SEP-6/10/12/38│  ⇄  Turkish lira / IBAN
         └──────────────────────────┘
 ```
 
@@ -170,12 +170,35 @@ fn withdraw(e, df_amount: i128, min_amounts_out: Vec<i128>, from: Address) -> Ve
 `deposit`'s third return value is a per-strategy report whose types live in
 DeFindex's own crates. Harvest decodes it as an opaque `Val` and discards it,
 which avoids vendoring those types purely to throw the value away — and is what
-keeps the local twin and the real vault interchangeable.
+keeps the test twin and the real vault interchangeable.
 
-**Swapping in the real vault** is a one-line change to `deployments.json`, with
-one precondition: the live vault must be denominated in the *same* USDC the
-anchor settles (`GBBD47IF…`). A vault holding a different USDC would make the
-fiat rail and the escrow two unrelated systems wearing the same label.
+**The escrow is a real DeFindex vault.** The precondition for using one is that
+it holds the *same* USDC the anchor settles (`GBBD47IF…`); a vault holding a
+different USDC would make the fiat rail and the escrow two unrelated systems
+wearing the same label. DeFindex's own testnet USDC vault fails that test: it
+holds Blend's testnet USDC (`CAQCFVLO…`). So
+[`scripts/deploy-defindex.mjs`](../scripts/deploy-defindex.mjs) creates a vault
+through DeFindex's testnet factory with the anchor's USDC as its only asset, and
+deploys a campaign contract initialised with that vault's address. The contract
+code did not change.
+
+Two consequences worth stating:
+
+- **No yield on testnet.** DeFindex's testnet Blend strategy only accepts Blend's
+  USDC, so no strategy is attached and escrow sits idle. On mainnet the same vault
+  takes a Blend USDC strategy. Wiring our own Blend pool on testnet (pool, oracle,
+  backstop, strategy, and a borrower so interest exists at all) was weighed and
+  left out: hours of work for a few stroops of visible yield.
+- **Minimum liquidity.** A DeFindex vault locks a small amount of shares on its
+  first deposit. If a campaign had made that deposit it would recover slightly
+  less than it put in, and `disburse`, which pays the farmer exactly `raised`,
+  would fail. The deploy script seeds the vault with 1 USDC first; after that,
+  with no yield, shares stay 1:1 with USDC and nothing is lost to rounding.
+  [`scripts/lifecycle-on-testnet.mjs`](../scripts/lifecycle-on-testnet.mjs)
+  checks the amounts at every step to prove it.
+
+`mock-defindex-vault` stays in the repository for the contract tests, which
+should not depend on testnet and which exercise the yield paths.
 
 ### The authorization depth problem
 
@@ -247,6 +270,96 @@ One trap worth recording: SEP-6 `/deposit` prices its `amount` in **lira**, not
 in the asset being delivered. Passing a USDC figure fails with `amount below
 minimum (50.00 TRY)`, which reads like a limits problem and is a units problem.
 
+### The way back: USDC to an IBAN
+
+The withdrawal runs in four steps, all driven from the app:
+
+1. **SEP-12.** The payout IBAN goes to the anchor as customer data
+   (`PUT /customer`, `bank_account_number`). SEP-6 `/withdraw` has no bank field
+   for `bank_account`; without this step the sandbox pays out to an IBAN of its
+   own and the one the user typed goes nowhere.
+2. **SEP-6 `/withdraw`.** The anchor answers with its treasury address and a memo.
+3. **The payment.** The user's wallet sends the USDC to that address with that
+   memo; the anchor attributes incoming payments to withdrawals by the memo.
+4. **Polling** `/transaction` until the anchor reports the lira paid.
+
+The anchor rejects an IBAN with a bad ISO 13616 checksum. That check runs in the
+browser too, before anything is sent, so a typo can never cost the user the USDC
+leg. [`scripts/anchor-roundtrip.mjs`](../scripts/anchor-roundtrip.mjs) proves both
+directions on testnet.
+
+---
+
+## Wallets
+
+Every signature in the app goes through one shape, `{ sign(tx), signChallenge(xdr) }`.
+Behind it, users connect their own wallet through **Stellar Wallets Kit**
+(Freighter, xBull, Albedo, LOBSTR, Hana and the kit's other default modules), so
+the app holds no keys. For someone without a wallet there is a demo keypair kept
+in `localStorage`, labelled as such. The kit is imported lazily because its wallet
+modules touch `window` and `localStorage` on load, which must not happen during
+server rendering. Before asking for a signature the app checks the wallet's
+network and refuses early with a clear message if it is not on testnet.
+
+A fresh testnet account can do nothing useful until friendbot has funded it and a
+USDC trustline exists; without the trustline the token contract refuses any
+transfer to it with `Error(Contract, #13)`. The app detects this and puts one
+"prepare account" step in front of every action that moves USDC.
+
+### Passkey smart wallets
+
+The third sign-in is a passkey: Face ID, Touch ID, Windows Hello or a phone,
+with no seed phrase, no extension and no XLM on the user's side. It uses
+Stellar's `smart-account-kit` and the OpenZeppelin smart-account contracts the
+kit has already deployed on testnet (account WASM `1b5f4534…`, WebAuthn verifier
+`CC7EKIHQ…OM3F`). The wallet is a C-address. It holds USDC through the token
+contract (no trustline), and the campaign's `require_auth` is answered by the
+passkey signature through the account's `__check_auth`, so fund, claim, create,
+disburse and repay work without any contract change. The verifier binds proofs
+to `sha256(strkey)`, which covers `C…` addresses as well as `G…`.
+
+A contract account cannot be a transaction source, so these wallets expose
+`invoke({contractId, method, args})` next to `sign`: the app simulates to record
+the auth the call needs, the passkey signs it, and a fee account submits.
+
+Two things did not work as documented and shaped the design:
+
+- **Fees.** The kit can hand submission to SDF's relayer proxy, but it lives on
+  `*.workers.dev`, and Turkish networks reset the TLS handshake to that domain.
+  A demo from Türkiye would hang. Each browser therefore keeps one
+  friendbot-funded testnet account that pays the fees (the kit's "dedicated
+  deployer"). On mainnet that role belongs to the OpenZeppelin Relayer.
+- **The anchor.** The TR anchor authenticates with SEP-10, which only knows
+  G-accounts; contract accounts need SEP-45, which the sandbox does not offer.
+  The lira legs run through the same browser account as a ramp: a deposit lands
+  there and is moved into the smart wallet with a token transfer, and a
+  withdrawal moves the USDC to the ramp (passkey-signed) before the usual SEP-6
+  payment. The UI says so in the anchor window.
+
+[`scripts/passkey-e2e.mjs`](../scripts/passkey-e2e.mjs) runs the whole path on
+testnet with a software P-256 authenticator: deploy a smart account, bring lira
+in through the anchor, and fund a campaign with a passkey-signed call.
+
+The kit pins `@stellar/stellar-sdk` 16.3, and its generated bindings resolve
+whatever SDK is hoisted next to them. XDR objects from one SDK copy are not
+recognised by another, so `next.config.js` aliases every `@stellar/stellar-sdk`
+import in the bundle to one copy.
+
+---
+
+## Language and currency
+
+Every string in the web app lives in two dictionaries,
+`packages/frontend/src/i18n/tr.ts` and `en.ts`. TypeScript makes `en` match
+`tr`'s shape exactly, so a missing translation fails the build, and the files
+can be reused as is by a redesigned frontend. The first visit follows the
+browser language; the choice is kept in `localStorage`. Errors thrown by the
+chain layer (outside React) use a small runtime helper, `tl(tr, en)`, that
+follows the same picker.
+
+Amounts are USDC on chain. The display currency can be USDC, USD (1:1) or TRY,
+converted with the anchor's live mid rate from its `/health` endpoint.
+
 ---
 
 ## Things deliberately left out
@@ -257,7 +370,18 @@ minimum (50.00 TRY)`, which reads like a limits problem and is a units problem.
 | **Reflector oracle** | Not on the eligible partner list — and the anchor already uses Reflector internally for its USD/TRY rate, so it is in the stack transitively. Saying that honestly beats writing a mock oracle. |
 | **A mocked harvest oracle** | Replaced by the cooperative's real EdDSA signature, which the circuit needed anyway. Real cryptography instead of a stub. |
 | **x402 agentic payments** | Workshop-aligned and cheap to add, but not load-bearing. Gated behind the core four being finished. |
-| **Passkey smart wallets** | The highest-value remaining item. Deliberately sequenced after the three hard requirements so there was always a working demo. See [ROADMAP](ROADMAP.md). |
+
+---
+
+## Problems met while wiring the web app
+
+| Symptom | Cause | Fix |
+| :--- | :--- | :--- |
+| Every anchor call failed in the browser with "Illegal invocation" | `AnchorClient` stored `globalThis.fetch` and called it as a method. Node accepts that; browsers do not. | The default `fetch` is a wrapper function ([`anchor.mjs`](../packages/sdk/src/anchor.mjs)). |
+| The SEP-38 quote never appeared | Every SEP-38 call needs the SEP-10 token, including the indicative price. | One SEP-10 session per wallet, opened when the anchor window opens and shared by quote, deposit and withdraw. |
+| After the escrow moved to DeFindex, the app still read the old campaign contract | Contract ids were injected into the Next.js bundle through an environment variable, and webpack's cache served a module compiled with the old value. | The app imports `deployments.json` directly, so webpack tracks the file. |
+| "Withdraw advance" failed with `Error(Contract, #13)` | The farmer's fresh account had no USDC trustline. The token's error numbers overlap the campaign contract's. | A "prepare account" step before any USDC-moving action; token errors mapped by call. |
+| Node scripts finished their work and never exited | snarkjs keeps its curve worker threads alive. | `curve_bn128.terminate()` at the end of every proving script. |
 
 ---
 
@@ -267,7 +391,9 @@ minimum (50.00 TRY)`, which reads like a limits problem and is a units problem.
 | :--- | ---: | :--- |
 | Circuit | 11 | A real proof verifies, and four distinct cheats are refused: overclaiming the threshold, editing the yield under an old signature, self-signing the attestation, and tampering with public signals after the fact. |
 | Contract | 17 | The pairing runs in the Soroban host over real circom artefacts. Covers accept, wrong statement, unaccredited issuer, replay, revocation, and the full campaign lifecycle including a failed campaign returning principal + yield. |
-| Browser | 15 | The real app against the real cooperative service and the deployed contracts. Asserts the payload excludes the private yield, and that the live contract refuses both an inflated claim and a replay. |
+| Browser | 15 | The earlier Vite app against the real cooperative service and the deployed contracts. Asserts the payload excludes the private yield, and that the live contract refuses both an inflated claim and a replay. |
+| Testnet lifecycle | 1 script | [`lifecycle-on-testnet.mjs`](../scripts/lifecycle-on-testnet.mjs): two fresh accounts funded in lira through the anchor, a real proof, then create, fund, disburse, repay and claim against the DeFindex vault, with the money checked at each step. |
+| Fiat round trip | 1 script | [`anchor-roundtrip.mjs`](../scripts/anchor-roundtrip.mjs): lira in to USDC, then USDC out to an IBAN through SEP-12 and SEP-6. |
 
 The negative cases outnumber the positive ones on purpose. A proof system that
 has only ever been shown accepting things has not been shown to do anything.

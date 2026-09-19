@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" width="100%" height="100%" aria-label="HARVEST Field Mark" role="img">
+  <!-- 01 Solid Outer Seal -->
+  <circle cx="160" cy="160" r="150" fill="none" stroke="#244E2C" stroke-width="6.5" />
+  
+  <!-- 02 Dotted Inner Seal -->
+  <circle cx="160" cy="160" r="130" fill="none" stroke="#244E2C" stroke-width="3.2" stroke-dasharray="2.5 7.5" stroke-linecap="round" />
+  
+  <!-- 03 11 Grain Forms + Stem (180 derece çevrilmiş) -->
+  <g stroke="#244E2C" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" fill="#D6A32F" transform="rotate(180 160 160)">
+    <!-- Stem (Sap) -->
+    <line x1="160" y1="85" x2="160" y2="265" stroke="#244E2C" stroke-width="4.5" />
+    
+    <!-- 1. Apex Grain -->
+    <path d="M 160 52 C 148 68, 148 84, 160 100 C 172 84, 172 68, 160 52 Z" />
+    
+    <!-- Pair 1 -->
+    <path d="M 160 100 C 138 90, 122 100, 116 118 C 134 122, 150 115, 160 102 Z" />
+    <path d="M 160 100 C 182 90, 198 100, 204 118 C 186 122, 170 115, 160 102 Z" />
+    
+    <!-- Pair 2 -->
+    <path d="M 160 128 C 136 118, 118 128, 112 148 C 132 152, 148 144, 160 130 Z" />
+    <path d="M 160 128 C 184 118, 202 128, 208 148 C 188 152, 172 144, 160 130 Z" />
+    
+    <!-- Pair 3 -->
+    <path d="M 160 158 C 134 148, 116 158, 110 178 C 130 182, 148 174, 160 160 Z" />
+    <path d="M 160 158 C 186 148, 204 158, 210 178 C 190 182, 172 174, 160 160 Z" />
+    
+    <!-- Pair 4 -->
+    <path d="M 160 188 C 136 178, 120 188, 114 206 C 134 210, 148 202, 160 190 Z" />
+    <path d="M 160 188 C 184 178, 200 188, 206 206 C 186 210, 172 202, 160 190 Z" />
+    
+    <!-- Pair 5 -->
+    <path d="M 160 216 C 142 208, 130 216, 126 230 C 142 233, 152 227, 160 218 Z" />
+    <path d="M 160 216 C 178 208, 190 216, 194 230 C 178 233, 168 227, 160 218 Z" />
+  </g>
+</svg>

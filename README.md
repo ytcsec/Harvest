@@ -13,7 +13,7 @@ campaign is still filling.
 
 | | |
 | :-- | :-- |
-| **Live contracts** | [verifier](https://stellar.expert/explorer/testnet/contract/CANPSPHJIKTFE7G63BO6TG5M53RU7DKRH26RWKHFCMO6GKQFQAKIKL3B) · [campaign](https://stellar.expert/explorer/testnet/contract/CDBFK23UIF6U2LQFLS5SHRFSKUQACKN6XL63DJ52F7CCWNKDBJHKTQRH) · [vault](https://stellar.expert/explorer/testnet/contract/CDJQVZFZ7NBBOCDOZVDAD2RWIDKC35MGPBGVYQVVZKCD7HFX5UMB34W3) |
+| **Live contracts** | [verifier](https://stellar.expert/explorer/testnet/contract/CANPSPHJIKTFE7G63BO6TG5M53RU7DKRH26RWKHFCMO6GKQFQAKIKL3B) · [campaign](https://stellar.expert/explorer/testnet/contract/CD6CVVLDQGQ5OVQWPKTHVLNHFIPKXCFJGGLRMADOXQ7YGXED7RTYZHXP) · [DeFindex vault](https://stellar.expert/explorer/testnet/contract/CBO3I46J5JK7TXN2S2VSUYVHOEMQZ3WGNFVXSSUNTU3C53NZ3YHHYNQN) |
 | **Fiat rail** | [tr-mock-anchor.fly.dev](https://tr-mock-anchor.fly.dev) — SEP-1/6/10/12/38 |
 | **Tests** | 17 contract · 11 circuit · 15 browser end-to-end |
 | **Proving time** | ~520 ms, in the browser |
@@ -59,7 +59,7 @@ season, a nullifier, and the proof.
   cooperative signs 48,500 kg  ──►  browser: Groth16 proof  ──►  Soroban: BN254 pairing
         (private record)                (nothing sent)              "≥ 40,000 kg" ✓
 
-  investor: 500 TRY ──► anchor ──► 10.22 USDC ──► campaign ──► DeFindex vault (earning)
+  investor: 500 TRY ──► anchor ──► 10.22 USDC ──► campaign ──► DeFindex vault (escrow)
                                                                       │
   harvest ──► farmer repays ──► investors claim principal + return + yield
                             └─► anonymous credit tier +1, keyed to the nullifier
@@ -69,8 +69,8 @@ season, a nullifier, and the proof.
 
 | Requirement | How Harvest meets it | Evidence |
 | :--- | :--- | :--- |
-| **1. Protocol integration** | Escrow *is* a vault position. Contributions are deposited on arrival via cross-contract call and only withdrawn at settlement. | [`harvest-campaign/src/lib.rs`](contracts/harvest-campaign/src/lib.rs) `vault_deposit` / `vault_withdraw` |
-| **2. Anchor / local payments** | SEP-10 auth, SEP-38 quote, SEP-6 deposit and withdraw against a TRY anchor. Lira in, spendable USDC out, lira back to an IBAN. | [`anchor.mjs`](packages/sdk/src/anchor.mjs), [`anchor-roundtrip.mjs`](scripts/anchor-roundtrip.mjs) |
+| **1. Protocol integration** | Two partners from the eligible list. **DeFindex:** escrow *is* a position in a real DeFindex vault, created through DeFindex's testnet factory; contributions are deposited on arrival via cross-contract call and only withdrawn at settlement. **Stellar Wallets Kit:** every signature in the app (Freighter, xBull, Albedo, Lobstr, Hana, ...) goes through it. | [`harvest-campaign/src/lib.rs`](contracts/harvest-campaign/src/lib.rs) `vault_deposit` / `vault_withdraw`, [`deploy-defindex.mjs`](scripts/deploy-defindex.mjs), [`lifecycle-on-testnet.mjs`](scripts/lifecycle-on-testnet.mjs), [`wallet.js`](packages/frontend/src/lib/chain/wallet.js) |
+| **2. Anchor / local payments** | SEP-10 auth, SEP-38 quotes, SEP-12 payout IBAN, SEP-6 deposit and withdraw against a TRY anchor. Lira in, spendable USDC out; USDC paid back to the anchor with its memo, lira out to an IBAN. Both directions run in the app and in the script. | [`anchor.mjs`](packages/sdk/src/anchor.mjs), [`anchor-roundtrip.mjs`](scripts/anchor-roundtrip.mjs) |
 | **3. Core feature is load-bearing** | Remove the ZK and the farmer must publish their capacity — the product's entire reason to exist is gone. Remove the vault and nobody commits to a campaign early. | §4 below |
 | **4. Soroban SDK, deployed to testnet** | Three contracts on `soroban-sdk 27.0.6`, deployed and initialised. | [`deployments.json`](deployments.json) |
 | **5. Cite skill files used** | Two official skills genuinely consulted, with what each changed. | [`docs/SKILLS_USED.md`](docs/SKILLS_USED.md) |
@@ -105,23 +105,31 @@ Stated plainly, because being caught is far more expensive than volunteering it.
 - On-chain verification through `env.crypto().bn254()` in the Soroban host.
 - USDC settlement on Stellar testnet. [This anchor deposit](https://stellar.expert/explorer/testnet/tx/ee7f7349008591e8f1c317c7881bc4c9b1da6358d9fb3d272bb1cc69b7b2a2f5)
   moved 500 TRY into 10.2211935 USDC.
-- All three contracts deployed, initialised and exercised on testnet.
+- All contracts deployed, initialised and exercised on testnet.
+- The escrow is a real DeFindex vault. [`lifecycle-on-testnet.mjs`](scripts/lifecycle-on-testnet.mjs)
+  runs create → fund → disburse → repay → claim against it, with the money
+  checked at every step.
 
 **Simulated or stubbed:**
 - The anchor is a **sandbox**. The bank wire, the KYC and the lira payout are
   simulated; the USDC leg is genuine testnet activity.
-- The vault is our own [`mock-defindex-vault`](contracts/mock-defindex-vault/src/lib.rs),
-  implementing DeFindex's `VaultTrait` signatures exactly so the vault address
-  can point at a live DeFindex vault with no code change. It exists so the
-  contract tests do not depend on testnet liveness, and so a 45-day funding
-  window's yield can be shown in a four-minute demo. **It is not a yield
-  strategy.** See [ARCHITECTURE](docs/ARCHITECTURE.md#the-vault) for what
-  swapping in the real vault involves.
+- **The DeFindex vault earns nothing on testnet.** DeFindex's testnet Blend
+  strategy only takes Blend's own testnet USDC, not the Circle testnet USDC the
+  anchor settles, so our vault has no strategy attached and escrow sits idle.
+  On mainnet the same vault takes a Blend USDC strategy. The contract tests
+  still use [`mock-defindex-vault`](contracts/mock-defindex-vault/src/lib.rs),
+  a twin of DeFindex's `VaultTrait` that can simulate yield, so they do not
+  depend on testnet liveness.
 - The cooperative's signing key is generated by the deploy script. In production
   it lives in the cooperative's HSM.
-- The browser wallet is a keypair in `localStorage`, honestly labelled as such
-  in the UI. Passkey smart wallets are on the roadmap; every signature already
-  goes through one `sign(tx)` seam, so swapping them in touches one file.
+- Users connect their own wallet through Stellar Wallets Kit. For someone
+  without one there is a demo keypair in `localStorage`, honestly labelled as
+  such in the UI. A third option is a passkey smart wallet (Face ID / Windows
+  Hello, no seed phrase, no XLM); its fees and its anchor legs go through an
+  account kept in the browser, for the reasons in
+  [ARCHITECTURE](docs/ARCHITECTURE.md#passkey-smart-wallets).
+- The app is in Turkish and English, and shows amounts in USDC, USD or TRY.
+- Campaigns run in six countries besides Türkiye (Colombia, Vietnam, Kenya open; India, Kazakhstan, Chile repaid), opened by `scripts/open-global-campaigns.mjs`. Their records are signed with the one cooperative key the verifier has accredited; the verifier accepts any number of issuers (`accredit_issuer`), so in production each country's cooperative signs with its own key. Lira is the only fiat rail wired today; other countries plug in their own SEP-6 anchor.
 - Contracts are **unaudited** and testnet-only.
 - This repository was built in the days before the event, not during it.
 
@@ -143,15 +151,17 @@ npm run deploy
 
 # 4. Services
 npm run issuer                # the cooperative, on :8787
-npm run web                   # the app, on :5173
+npm run frontend              # the app (Next.js), on :3000
+npm run web                   # the earlier Vite app, on :5173
 ```
 
 Verify the claims yourself:
 
 ```bash
-node scripts/prove-on-testnet.mjs   # proof accepted, tampered claim refused
-node scripts/anchor-roundtrip.mjs   # 500 TRY -> real testnet USDC
-node scripts/e2e.mjs --headed       # watch the whole thing in a browser
+node scripts/prove-on-testnet.mjs      # proof accepted; inflated claim and replay refused
+node scripts/anchor-roundtrip.mjs      # 500 TRY -> USDC, then USDC -> lira at an IBAN
+node scripts/lifecycle-on-testnet.mjs  # create, fund, disburse, repay, claim on the DeFindex vault
+node scripts/e2e.mjs --headed          # the earlier Vite app, driven in a browser
 ```
 
 **Windows note:** Rust's MSVC host toolchain needs the Windows SDK, which this
@@ -170,7 +180,8 @@ contracts/
 packages/
   sdk/             encoding, attestation, anchor and Soroban clients
   issuer/          the cooperative's attestation service
-  web/             the app (Turkish / English)
+  frontend/        the app: Next.js, Turkish, wired to the contracts, issuer and anchor
+  web/             the earlier Vite app (Turkish / English); scripts/e2e.mjs still drives it
 scripts/           deploy, and one script per claim this README makes
 docs/              architecture, skills used, roadmap, demo script
 ```

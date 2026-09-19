@@ -27,12 +27,18 @@
 //! of addresses. Pull-based payouts keep settlement O(1) and mean one hostile
 //! or unfunded account cannot brick everyone else's exit.
 //!
-//! - **Goal missed.** The whole position is withdrawn and becomes the pool, so
+//! - **Minimum missed.** If the deadline passes before `min_bps` of the target
+//!   is raised, the whole position is withdrawn and becomes the pool, so
 //!   investors get principal *plus* whatever the vault earned while waiting.
-//! - **Goal met.** The farmer draws `raised`; the yield earned during funding
-//!   stays behind for investors.
-//! - **Repayment.** The farmer's repayment is added to the pool, and the
-//!   anonymous reputation tier behind the campaign's nullifier goes up.
+//!   The nullifier is released, so the farmer can try again this season with a
+//!   smaller target.
+//! - **Minimum met.** From that moment the farmer can draw what has been
+//!   raised, and draw again as more arrives, until the target is reached or
+//!   the deadline passes. The yield earned while waiting stays behind for
+//!   investors. `min_bps = 10_000` is the classic all-or-nothing campaign.
+//! - **Repayment.** The farmer repays what was actually drawn plus the agreed
+//!   return; it is added to the pool, and the anonymous reputation tier behind
+//!   the campaign's nullifier goes up.
 
 use soroban_sdk::{
     auth::{ContractContext, InvokerContractAuthEntry, SubContractInvocation},
@@ -120,16 +126,23 @@ pub enum CampaignError {
     NothingToClaim = 10,
     AlreadyClaimed = 11,
     InvalidParameters = 12,
+    // 13 is left unused: callers already read #13 from the USDC token contract
+    // as "no trustline", and campaign calls surface both.
+    /// Less than the campaign's minimum has been raised.
+    BelowMinimum = 14,
+    /// Nothing new to draw, and funding is still open.
+    NothingToDisburse = 15,
 }
 
 #[contracttype]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CampaignStatus {
-    /// Accepting contributions; funds are earning in the vault.
+    /// Accepting contributions; funds are earning in the vault. Once the
+    /// minimum is met the farmer may already have drawn part of the advance.
     Funding,
-    /// Target reached, farmer has not drawn yet.
+    /// Target reached, farmer has not drawn all of it yet.
     Funded,
-    /// Advance paid out; waiting on the harvest.
+    /// Funding closed and everything raised paid out; waiting on the harvest.
     Disbursed,
     /// Farmer repaid. Investors claim principal + return + yield.
     Repaid,
@@ -156,6 +169,11 @@ pub struct Campaign {
     pub deadline: u64,
     /// What the farmer promises back, in basis points over principal.
     pub return_bps: u32,
+    /// Share of the target, in basis points, that must be raised before the
+    /// farmer can draw. 10_000 means all or nothing.
+    pub min_bps: u32,
+    /// Principal paid out to the farmer so far.
+    pub disbursed: i128,
     pub status: CampaignStatus,
     /// Final, fixed amount investors divide once the campaign is terminal.
     pub investor_pool: i128,
@@ -219,10 +237,11 @@ impl HarvestCampaign {
         target: i128,
         deadline: u64,
         return_bps: u32,
+        min_bps: u32,
     ) -> Result<u32, CampaignError> {
         farmer.require_auth();
 
-        if target <= 0 || return_bps > 10_000 {
+        if target <= 0 || return_bps > 10_000 || min_bps == 0 || min_bps > 10_000 {
             return Err(CampaignError::InvalidParameters);
         }
         if deadline <= env.ledger().timestamp() {
@@ -253,6 +272,8 @@ impl HarvestCampaign {
             shares: 0,
             deadline,
             return_bps,
+            min_bps,
+            disbursed: 0,
             status: CampaignStatus::Funding,
             investor_pool: 0,
         };
@@ -322,10 +343,12 @@ impl HarvestCampaign {
         Ok(shares)
     }
 
-    /// Close a campaign that missed its target once the deadline has passed.
+    /// Close a campaign that missed its minimum once the deadline has passed.
     ///
     /// Unwinds the vault position in full, so the pool investors divide is
-    /// principal plus everything the vault earned while they waited.
+    /// principal plus everything the vault earned while they waited. The
+    /// attestation's nullifier is released: the farmer was never financed on
+    /// it, so they may open a smaller campaign for the same season.
     pub fn close_unfunded(env: Env, id: u32) -> Result<i128, CampaignError> {
         let mut campaign = Self::load(&env, id)?;
         if campaign.status != CampaignStatus::Funding {
@@ -334,12 +357,20 @@ impl HarvestCampaign {
         if env.ledger().timestamp() <= campaign.deadline {
             return Err(CampaignError::DeadlineNotReached);
         }
+        // Past the minimum the farmer is entitled to the money; the campaign
+        // settles through `disburse` and `repay` instead.
+        if campaign.raised >= Self::minimum(&campaign) {
+            return Err(CampaignError::WrongStatus);
+        }
 
         let recovered = Self::vault_withdraw(&env, campaign.shares);
         campaign.shares = 0;
         campaign.investor_pool = recovered;
         campaign.status = CampaignStatus::Refunding;
         env.storage().persistent().set(&DataKey::Campaign(id), &campaign);
+        env.storage()
+            .persistent()
+            .remove(&DataKey::Nullifier(campaign.nullifier.clone()));
 
         env.events().publish(
             (symbol_short!("campaign"), symbol_short!("unfunded")),
@@ -348,41 +379,66 @@ impl HarvestCampaign {
         Ok(recovered)
     }
 
-    /// Farmer draws the advance on a fully funded campaign.
+    /// Farmer draws everything raised and not yet drawn.
     ///
-    /// The farmer receives exactly `raised`; the vault yield earned during
-    /// funding stays behind and is added to the investors' pool. That is the
+    /// Allowed once the minimum is met, and again whenever more has come in,
+    /// so a farmer who reached half the target is not left waiting for the
+    /// rest. The farmer receives principal only; the vault yield earned while
+    /// it waited stays behind and is added to the investors' pool. That is the
     /// concrete answer to "what did DeFindex actually buy us" -- the investors'
     /// downside for committing early is covered by the yield, not by the farmer.
+    ///
+    /// Once funding has closed (target reached or deadline passed) the call
+    /// also moves the campaign to `Disbursed`, which opens repayment -- even
+    /// when there was nothing new to pay out.
     pub fn disburse(env: Env, id: u32) -> Result<i128, CampaignError> {
         let mut campaign = Self::load(&env, id)?;
-        if campaign.status != CampaignStatus::Funded {
+        if campaign.status != CampaignStatus::Funding && campaign.status != CampaignStatus::Funded {
             return Err(CampaignError::WrongStatus);
         }
         campaign.farmer.require_auth();
+        if campaign.raised < Self::minimum(&campaign) {
+            return Err(CampaignError::BelowMinimum);
+        }
 
+        let closed = campaign.raised == campaign.target || env.ledger().timestamp() > campaign.deadline;
+        let advance = campaign.raised - campaign.disbursed;
+        if advance == 0 && !closed {
+            return Err(CampaignError::NothingToDisburse);
+        }
+
+        // Everything in the vault belongs to this undrawn principal plus the
+        // yield it earned; take it all out and keep the yield for investors.
         let recovered = Self::vault_withdraw(&env, campaign.shares);
-        let advance = campaign.raised;
-        let yield_earned = recovered - advance;
+        let yield_earned = (recovered - advance).max(0);
+        // A vault can round a withdrawal down by a stroop; never promise the
+        // farmer more than actually came back.
+        let paid = advance.min(recovered);
 
         campaign.shares = 0;
-        campaign.investor_pool = yield_earned.max(0);
-        campaign.status = CampaignStatus::Disbursed;
+        campaign.disbursed += advance;
+        campaign.investor_pool += yield_earned;
+        if closed {
+            campaign.status = CampaignStatus::Disbursed;
+        }
         env.storage().persistent().set(&DataKey::Campaign(id), &campaign);
 
-        Self::token(&env).transfer(&env.current_contract_address(), &campaign.farmer, &advance);
+        if paid > 0 {
+            Self::token(&env).transfer(&env.current_contract_address(), &campaign.farmer, &paid);
+        }
 
         env.events().publish(
             (symbol_short!("campaign"), symbol_short!("disburse")),
-            (id, campaign.farmer.clone(), advance, yield_earned),
+            (id, campaign.farmer.clone(), paid, yield_earned),
         );
-        Ok(advance)
+        Ok(paid)
     }
 
-    /// Exactly what the farmer owes: principal plus the agreed return.
+    /// Exactly what the farmer owes: the principal actually drawn plus the
+    /// agreed return on it.
     pub fn amount_due(env: Env, id: u32) -> Result<i128, CampaignError> {
         let c = Self::load(&env, id)?;
-        Ok(c.raised + (c.raised * c.return_bps as i128) / 10_000)
+        Ok(Self::due(&c))
     }
 
     /// Farmer repays after the harvest. Bumps the anonymous reputation tier.
@@ -393,7 +449,7 @@ impl HarvestCampaign {
         }
         campaign.farmer.require_auth();
 
-        let due = campaign.raised + (campaign.raised * campaign.return_bps as i128) / 10_000;
+        let due = Self::due(&campaign);
         Self::token(&env).transfer(
             &campaign.farmer,
             &env.current_contract_address(),
@@ -515,6 +571,15 @@ impl HarvestCampaign {
     }
 
     // -- internals ----------------------------------------------------------
+
+    /// The smallest amount raised at which the farmer may draw (rounded up).
+    fn minimum(c: &Campaign) -> i128 {
+        (c.target * c.min_bps as i128 + 9_999) / 10_000
+    }
+
+    fn due(c: &Campaign) -> i128 {
+        c.disbursed + (c.disbursed * c.return_bps as i128) / 10_000
+    }
 
     fn load(env: &Env, id: u32) -> Result<Campaign, CampaignError> {
         env.storage()

@@ -1,0 +1,40 @@
+{
+  "name": "@harvest/frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "predev": "node scripts/sync-zk.mjs",
+    "dev": "next dev",
+    "prebuild": "node scripts/sync-zk.mjs",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@creit.tech/stellar-wallets-kit": "^2.6.0",
+    "@harvest/sdk": "*",
+    "@radix-ui/react-slot": "^1.3.3",
+    "@stellar/stellar-sdk": "~16.3.0",
+    "buffer": "^6.0.3",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.454.0",
+    "next": "^14.2.15",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "smart-account-kit": "^0.8.0",
+    "snarkjs": "^0.7.5",
+    "tailwind-merge": "^2.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.15",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.6.3"
+  }
+}

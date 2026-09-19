@@ -37,3 +37,5 @@ console.log("inflated threshold                  ->", bad);
 
 const count = await client.read({ contractId: d.campaign, method: "campaign_count", args: [], source: me });
 console.log("campaign_count on live contract     ->", count);
+
+await globalThis.curve_bn128?.terminate();

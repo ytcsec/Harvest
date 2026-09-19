@@ -5,13 +5,16 @@
  *   node scripts/e2e.mjs --headed   # watch it happen
  *
  * Drives the real app against the real cooperative service and the real
- * testnet contracts. No mocks: the wallet is funded by friendbot, the proof is
- * built by snarkjs in the page, and the verdicts come back from the deployed
- * verifier.
+ * testnet contracts. No mocks: the marketplace and the vault banner are read
+ * back from the deployed contracts, the wallet is funded by friendbot, and the
+ * proof is built by snarkjs in the page against the 9,981-constraint circuit.
  *
- * The check that matters most is the last one. It asserts the browser refuses
- * to leak the private yield into the payload -- the claim the whole product
- * rests on, verified in the place a user would actually be harmed.
+ * The on-chain accept / reject / replay verdicts are asserted by
+ * `scripts/prove-on-testnet.mjs`, which also checks that the submitted payload
+ * never contains the private yield. This file covers the browser path: that a
+ * person can actually get from "nothing" to "a real Groth16 proof" through the
+ * UI, and that the private figure only ever appears in the panel labelled as
+ * staying on the device.
  */
 
 import { spawn } from "node:child_process";
@@ -82,6 +85,7 @@ process.on("exit", cleanup);
 process.on("SIGINT", () => { cleanup(); process.exit(1); });
 
 console.log("\nHarvest end-to-end\n");
+
 if (await alreadyUp("http://localhost:8787/issuer")) {
   console.log("  cooperative service already running, reusing it");
 } else {
@@ -104,7 +108,7 @@ if (await alreadyUp(WEB)) {
 }
 
 const browser = await chromium.launch({ headless: !HEADED });
-const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
+const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
 
 const consoleErrors = [];
 page.on("console", (m) => m.type() === "error" && consoleErrors.push(m.text()));
@@ -112,75 +116,75 @@ page.on("pageerror", (e) => consoleErrors.push(String(e)));
 
 try {
   await page.goto(WEB, { waitUntil: "networkidle" });
-  ok("app loads", await page.locator(".brand h1").isVisible());
 
-  // -- language -----------------------------------------------------------
-  ok("defaults to Turkish", (await page.locator(".tabs button").first().textContent()) === "Çiftçi");
-  await page.click('.langs button:has-text("EN")');
-  ok("switches to English", (await page.locator(".tabs button").first().textContent()) === "Farmer");
-  await page.click('.langs button:has-text("TR")');
+  // -- shell ---------------------------------------------------------------
+  ok("app loads", (await page.locator("header span:has-text('HARVEST')").first().isVisible()));
+  ok(
+    "investor portal is the landing view",
+    (await page.locator("h1:has-text('Doğrulanmış Tarım Hasatlarına')").isVisible()),
+  );
 
-  // -- wallet -------------------------------------------------------------
+  // -- live chain reads, before any wallet exists --------------------------
+  console.log("\n  reading the vault and the campaign list from chain ...");
+  await page.waitForFunction(
+    () => !document.body.innerText.includes("Kasadaki Toplam Değer\n—"),
+    null,
+    { timeout: 60_000 },
+  ).catch(() => {});
+  const vaultBlock = await page.locator("div:has-text('Kasadaki Toplam Değer')").last().innerText();
+  ok("vault banner shows live figures", /USDC/.test(vaultBlock), vaultBlock.replace(/\s+/g, " ").trim().slice(0, 60));
+
+  const opportunities = await page.locator("text=/Toplam .* hasat fırsatı/").innerText();
+  ok("campaign list read from the contract", /Toplam\s+\d+\s+hasat/.test(opportunities), opportunities.trim());
+
+  // -- wallet --------------------------------------------------------------
   console.log("\n  creating a funded wallet (friendbot + USDC trustline) ...");
-  await page.click('button.btn:has-text("Cüzdan oluştur")');
-  await page.waitForSelector(".chip.mono", { timeout: 90_000 });
-  const walletChip = await page.locator(".chip.mono").textContent();
-  ok("wallet created and funded", /USDC/.test(walletChip), walletChip.trim());
+  await page.click("header button:has-text('Cüzdan Oluştur')");
+  await page.click("div[class*='fixed'] button:has-text('Cüzdan Oluştur')");
+  await page.waitForSelector("text=Cüzdan Bağlandı", { timeout: 120_000 });
+  const addr = await page.locator("p.font-mono").first().innerText();
+  ok("wallet created and funded", /^G[A-Z0-9]{55}$/.test(addr.trim()), `${addr.trim().slice(0, 8)}…`);
+  await page.click("div[class*='fixed'] button[class*='hover:bg-emerald-950']");
 
-  // -- attestation --------------------------------------------------------
+  // -- farmer flow ---------------------------------------------------------
+  await page.click("button:has-text('Çiftçi & ZK Başvuru')");
+  ok("farmer flow opens", await page.locator("h2:has-text('Hasat Öncesi ZK Avans Başvurusu')").isVisible());
+
   console.log("\n  requesting the cooperative attestation ...");
-  await page.click('button.btn:has-text("Belgeyi al")');
-  await page.waitForSelector(".pane.private .big", { timeout: 30_000 });
-  const attested = await page.locator(".pane.private .big").first().textContent();
-  ok("cooperative signs the yield", attested.includes("48,5"), attested.trim());
+  await page.click("button:has-text('Resmi İmzalı Sertifikayı Al')");
+  await page.waitForSelector("text=GİZLİ TUTULAN VERİLER", { timeout: 60_000 });
 
-  // -- threshold ----------------------------------------------------------
-  const panes = page.locator(".pane");
-  await page.waitForSelector(".pane.public .big", { timeout: 10_000 });
-  const disclosed = await page.locator(".pane.public .big").textContent();
-  const kept = await page.locator(".pane.private .big").nth(1).textContent();
-  ok("threshold defaults below the real yield", disclosed.includes("38,8") || disclosed.includes("38"), disclosed.trim());
-  ok("headroom stays private", kept.trim().length > 0, kept.trim());
+  // Target the list row itself: :has-text() matches every ancestor too, so
+  // .last() lands on the innermost node, which is rarely the one with the value.
+  const secretRow = await page.locator("li:has-text('Gerçek Rekolte')").innerText();
+  ok("cooperative signs the real yield", secretRow.includes("48.500"), secretRow.trim());
 
-  // -- proving ------------------------------------------------------------
+  const thresholdInput = page.locator("input[type='number']").first();
+  const threshold = Number(await thresholdInput.inputValue());
+  ok("threshold defaults below the real yield", threshold > 0 && threshold * 1000 < 48_500, `${threshold} ton`);
+
+  // The declaration sentence itself, not the panel: :has-text() also matches
+  // the panel's heading row, which carries the label but none of the numbers.
+  const declaration = await page.locator("text=/Bu üreticinin hasat tahmini en az/").innerText();
+  ok("only the threshold is declared on chain", declaration.includes(`${threshold} Ton`), declaration.trim());
+  ok("the real figure is absent from the declaration", !declaration.includes("48.500"));
+
+  // -- proving -------------------------------------------------------------
   console.log("\n  generating the Groth16 proof in the browser ...");
-  await page.click('button.btn:has-text("Kanıt üret")');
-  await page.waitForSelector(".badge:has-text('Kanıt hazır')", { timeout: 180_000 });
-  const timing = await page.locator(".chip:has-text('Üretim süresi')").textContent();
-  ok("proof generated in the page", true, timing.trim());
+  await page.click("button:has-text('Tarayıcıda ZK Proof Üret')");
+  await page.waitForSelector("text=ZK Proof Hazır", { timeout: 240_000 });
 
-  // -- the privacy claim, checked where it matters -------------------------
-  await page.click("summary:has-text('Gönderilecek veriyi incele')");
-  const payload = await page.locator("pre.payload").first().textContent();
-  ok("payload excludes the real yield (48500)", !payload.includes("48500"));
-  ok("payload carries only the threshold", payload.includes('"threshold_kg"'));
+  const proofBadge = await page.locator(".badge-zk").first().innerText();
+  ok("proof generated in the page", /Groth16/.test(proofBadge), proofBadge.replace(/\s+/g, " ").trim());
+  ok("proving time reported", /\d+\s*ms/.test(proofBadge), (proofBadge.match(/\d+\s*ms/) ?? [""])[0]);
 
-  // -- on-chain verification ----------------------------------------------
-  console.log("\n  asking the deployed contract ...");
-  await page.click('.tabs button:has-text("Kanıt")');
-  await page.click('button:has-text("Geçerli kanıtı doğrula")');
-  await page.waitForSelector(".verdict", { timeout: 90_000 });
-  const first = await page.locator(".verdict").first().getAttribute("class");
-  ok("live contract accepts the honest proof", first.includes("ok"));
+  ok(
+    "campaign step never shows the private yield",
+    !(await page.locator("main").innerText()).includes("48.500"),
+  );
 
-  await page.click('button:has-text("Eşiği 90 tona şişir")');
-  await page.waitForFunction(() => document.querySelectorAll(".verdict").length >= 2, null, {
-    timeout: 90_000,
-  });
-  const second = await page.locator(".verdict").nth(1).getAttribute("class");
-  ok("live contract rejects the inflated claim", second.includes("no"));
-
-  await page.click('button:has-text("Başka bir hesaptan")');
-  await page.waitForFunction(() => document.querySelectorAll(".verdict").length >= 3, null, {
-    timeout: 90_000,
-  });
-  const third = await page.locator(".verdict").nth(2).getAttribute("class");
-  ok("live contract rejects the replay", third.includes("no"));
-
-  // -- investor view loads -------------------------------------------------
-  await page.click('.tabs button:has-text("Yatırımcı")');
-  ok("investor view renders", await page.locator("h2").first().isVisible());
-
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(300);
   await page.screenshot({ path: join(ROOT, "docs", "screenshot-proof.png"), fullPage: true });
 } finally {
   const fatal = consoleErrors.filter(

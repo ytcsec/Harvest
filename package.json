@@ -15,6 +15,8 @@
     "deploy": "node scripts/deploy.mjs",
     "issuer": "npm -w @harvest/issuer start",
     "web": "npm -w @harvest/web run dev",
+    "frontend": "npm -w @harvest/frontend run dev",
+    "frontend:build": "npm -w @harvest/frontend run build",
     "e2e": "node scripts/e2e.mjs",
     "verify": "node scripts/prove-on-testnet.mjs",
     "anchor": "node scripts/anchor-roundtrip.mjs",

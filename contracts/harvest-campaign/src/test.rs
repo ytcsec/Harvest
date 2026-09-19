@@ -207,6 +207,11 @@ impl World<'_> {
     }
 
     fn open_campaign(&self, fx: &FixtureJson, target: i128) -> u32 {
+        self.open_campaign_min(fx, target, 10_000)
+    }
+
+    /// A campaign the farmer can start drawing once `min_bps` of it is raised.
+    fn open_campaign_min(&self, fx: &FixtureJson, target: i128, min_bps: u32) -> u32 {
         self.campaign.create_campaign(
             &self.farmer(fx),
             &claim_of(&self.env, &fx.claim),
@@ -216,6 +221,7 @@ impl World<'_> {
             &target,
             &(self.env.ledger().timestamp() + 30 * 86_400),
             &1_500,
+            &min_bps,
         )
     }
 
@@ -263,6 +269,7 @@ fn a_proof_of_the_wrong_statement_cannot_open_a_campaign() {
             &(1_000 * UNIT),
             &(w.env.ledger().timestamp() + 86_400),
             &1_500,
+            &10_000,
         );
     assert!(err.is_err(), "a mismatched proof must not create a campaign");
     assert_eq!(w.campaign.campaign_count(), 0);
@@ -285,6 +292,7 @@ fn one_attestation_cannot_open_two_campaigns() {
             &(500 * UNIT),
             &(w.env.ledger().timestamp() + 86_400),
             &1_500,
+            &10_000,
         )
         .unwrap_err()
         .unwrap();
@@ -430,4 +438,108 @@ fn funding_cannot_overshoot_the_target_or_outlive_the_deadline() {
         .unwrap_err()
         .unwrap();
     assert_eq!(err, CampaignError::DeadlinePassed);
+}
+
+// ---------------------------------------------------------------------------
+// Minimum threshold: draw from half, keep drawing as money arrives
+// ---------------------------------------------------------------------------
+
+#[test]
+fn the_farmer_cannot_draw_before_the_minimum_is_met() {
+    let w = world();
+    let fx = fixture("valid.json");
+    let id = w.open_campaign_min(&fx, 1_000 * UNIT, 5_000);
+
+    let alice = w.funded_investor(499 * UNIT);
+    w.campaign.fund(&alice, &id, &(499 * UNIT));
+
+    let err = w.campaign.try_disburse(&id).unwrap_err().unwrap();
+    assert_eq!(err, CampaignError::BelowMinimum);
+}
+
+#[test]
+fn half_funded_the_farmer_draws_and_keeps_drawing_as_money_arrives() {
+    let w = world();
+    let fx = fixture("valid.json");
+    let farmer = w.farmer(&fx);
+    let id = w.open_campaign_min(&fx, 1_000 * UNIT, 5_000);
+
+    let alice = w.funded_investor(500 * UNIT);
+    w.campaign.fund(&alice, &id, &(500 * UNIT));
+    w.accrue(10 * UNIT);
+
+    // Half the target is in: the farmer does not wait for the rest.
+    assert_eq!(w.campaign.disburse(&id), 500 * UNIT);
+    assert_eq!(w.token.balance(&farmer), 500 * UNIT);
+    let c = w.campaign.get_campaign(&id);
+    assert_eq!(c.status, CampaignStatus::Funding, "funding stays open");
+    assert_eq!(c.disbursed, 500 * UNIT);
+    assert_eq!(c.investor_pool, 10 * UNIT, "yield so far is kept for investors");
+
+    // Nothing new yet.
+    let err = w.campaign.try_disburse(&id).unwrap_err().unwrap();
+    assert_eq!(err, CampaignError::NothingToDisburse);
+
+    // The rest arrives and the farmer draws it too.
+    let bob = w.funded_investor(500 * UNIT);
+    w.campaign.fund(&bob, &id, &(500 * UNIT));
+    assert_eq!(w.campaign.get_campaign(&id).status, CampaignStatus::Funded);
+    assert_eq!(w.campaign.disburse(&id), 500 * UNIT);
+    assert_eq!(w.token.balance(&farmer), 1_000 * UNIT);
+    assert_eq!(w.campaign.get_campaign(&id).status, CampaignStatus::Disbursed);
+
+    // Repay on everything drawn: 1000 + 15%.
+    assert_eq!(w.campaign.amount_due(&id), 1_150 * UNIT);
+    w.minter.mint(&farmer, &(150 * UNIT));
+    w.campaign.repay(&id);
+
+    // Pool = 10 yield + 1150, split by contribution.
+    assert_eq!(w.campaign.claim(&alice, &id), 580 * UNIT);
+    assert_eq!(w.campaign.claim(&bob, &id), 580 * UNIT);
+}
+
+#[test]
+fn if_the_rest_never_comes_the_farmer_carries_on_with_what_was_raised() {
+    let w = world();
+    let fx = fixture("valid.json");
+    let farmer = w.farmer(&fx);
+    let id = w.open_campaign_min(&fx, 1_000 * UNIT, 5_000);
+
+    let alice = w.funded_investor(600 * UNIT);
+    w.campaign.fund(&alice, &id, &(600 * UNIT));
+    assert_eq!(w.campaign.disburse(&id), 600 * UNIT);
+
+    // The deadline passes short of the target. Refunding is not an option:
+    // the minimum was met and the farmer already has the money.
+    w.past_deadline();
+    let err = w.campaign.try_close_unfunded(&id).unwrap_err().unwrap();
+    assert_eq!(err, CampaignError::WrongStatus);
+
+    // Closing the draw opens repayment on the 600 actually drawn.
+    assert_eq!(w.campaign.disburse(&id), 0);
+    assert_eq!(w.campaign.get_campaign(&id).status, CampaignStatus::Disbursed);
+    assert_eq!(w.campaign.amount_due(&id), 690 * UNIT);
+
+    w.minter.mint(&farmer, &(90 * UNIT));
+    w.campaign.repay(&id);
+    assert_eq!(w.campaign.claim(&alice, &id), 690 * UNIT);
+}
+
+#[test]
+fn below_the_minimum_investors_are_refunded_and_the_farmer_may_try_again() {
+    let w = world();
+    let fx = fixture("valid.json");
+    let id = w.open_campaign_min(&fx, 1_000 * UNIT, 5_000);
+
+    let alice = w.funded_investor(300 * UNIT);
+    w.campaign.fund(&alice, &id, &(300 * UNIT));
+    w.past_deadline();
+
+    assert_eq!(w.campaign.close_unfunded(&id), 300 * UNIT);
+    assert_eq!(w.campaign.claim(&alice, &id), 300 * UNIT);
+
+    // The farmer was never financed on this attestation, so the same proof
+    // can back a smaller campaign in the same season.
+    let retry = w.open_campaign_min(&fx, 400 * UNIT, 5_000);
+    assert_eq!(w.campaign.get_campaign(&retry).status, CampaignStatus::Funding);
 }

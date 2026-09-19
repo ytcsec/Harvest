@@ -67,6 +67,8 @@ export function proofToScVal(proof) {
 }
 
 export const addressToScVal = (addr) => new Address(addr).toScVal();
+/** A `BytesN<N>` argument, from a hex string. Length is checked by the host. */
+export const bytesN = (hex) => bytes(hex);
 export const i128 = (v) => nativeToScVal(BigInt(v), { type: "i128" });
 export const u32 = (v) => nativeToScVal(Number(v), { type: "u32" });
 export const u64 = (v) => nativeToScVal(BigInt(v), { type: "u64" });

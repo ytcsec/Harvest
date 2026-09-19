@@ -1,113 +1,84 @@
-# Demo — four minutes
+# Demo: four minutes
+
+A Turkish step-by-step version with preparation and troubleshooting is in
+[DEMO-REHBERI.md](DEMO-REHBERI.md).
 
 ```bash
-npm run issuer    # :8787
-npm run web       # :5173
+npm run issuer      # the cooperative, :8787
+npm run frontend    # the app, :3000
 ```
 
-Have a second tab open on
-[stellar.expert](https://stellar.expert/explorer/testnet/contract/CANPSPHJIKTFE7G63BO6TG5M53RU7DKRH26RWKHFCMO6GKQFQAKIKL3B).
+Have a second tab open on the
+[verifier on stellar.expert](https://stellar.expert/explorer/testnet/contract/CANPSPHJIKTFE7G63BO6TG5M53RU7DKRH26RWKHFCMO6GKQFQAKIKL3B).
 
 ---
 
-## 0:00 — the problem, in one sentence
+## 0:00: the problem, in one sentence
 
-> "A Turkish hazelnut grower needs cash in March and gets paid in October. To
-> borrow, they have to tell the lender how much they will harvest. The lender is
-> usually the same person who will buy that harvest. So disclosing is how the
-> price gets broken — and not disclosing means no money."
+> "A Turkish grower needs cash in March and gets paid in October. To borrow,
+> they have to tell the lender how much they will harvest, and the lender is
+> usually the one who will buy that harvest. Disclosing is how the price gets
+> broken; not disclosing means no money."
 
 Do not explain zero-knowledge yet. Let the screen do it.
 
-## 0:30 — the attestation
+## 0:30: the attestation
 
-Farmer tab → **Cüzdan oluştur** (pre-create this before the judges arrive; it
-takes ~20 s for friendbot and the trustline).
+Connect the farmer's wallet (Freighter through Stellar Wallets Kit, prepared in
+advance) → **Kampanya Başlat** → member **Kemal Güler (GFK-2026-0418)** →
+**İmzalı Sertifikayı Al**.
 
-Pick `GFK-2026-0142` → **Belgeyi al**.
+> "The cooperative signs what its own records say: 120 tonnes of potatoes.
+> That number is in the amber panel, on this device, and it stays here."
 
-> "The cooperative signs what its own records say: 48.5 tonnes. Note where that
-> number is — it is on the dashed panel. That means it is on this device and it
-> is going to stay there."
+## 1:00: the choice
 
-## 1:00 — the choice
+Set the public threshold to 95 tonnes.
 
-Drag the threshold slider down to ~38 tonnes.
+> "This is the only number the market will ever see. The rest is what keeps
+> the grower's bargaining position intact at harvest."
 
-> "This is the only number the market will ever see. The 10.5 tonnes on the
-> right is what keeps the grower's bargaining position intact at harvest."
+## 1:20: proving
 
-The two panels are the pitch. Let them sit for a beat.
+**ZK Kanıtı Üret.** About a second in the browser, then the verifier contract
+checks it and the panel says the Soroban verifier accepted it.
 
-## 1:20 — proving
+> "A Groth16 proof over BN254, built in this tab. The yield never left the
+> laptop."
 
-**Kanıt üret.**
+## 1:50: the part that matters
 
-> "That proof was just built in this browser. About half a second. Nothing was
-> uploaded."
+In the **Sözleşmeyi sına** box, press both **Dene** buttons:
 
-Open **Gönderilecek veriyi incele**.
+- the same proof claiming double the threshold → **rejected**
+- the same proof sent from another account → **rejected**
 
-> "This is the entire payload going to Stellar. Threshold, season, a nullifier,
-> and the proof. Search it for 48500 — it is not there."
+> "Anyone can show a green tick. The chain refusing a lie told with a perfectly
+> valid proof is what makes the green tick mean something."
 
-## 2:00 — the chain
+Spend the most time here. Then **Stellar'da Yayınla** and open the transaction
+link.
 
-**Kampanyayı aç** → open the transaction link.
+## 2:40: the lira rail and the vault
 
-> "The contract would not have accepted this transaction if the proof did not
-> hold. That check ran a BN254 pairing inside the Soroban host, not in a server
-> we control."
+Switch to the investor wallet (disconnect, connect). Campaign list → point at the
+DeFindex strip → **Tokat Patatesi** → **USDC ile Destekle** → 60.
 
-## 2:30 — the part that matters
+> "The investor's lira came in through a Stellar anchor: SEP-10 login, SEP-38
+> quote, SEP-6 deposit, real testnet USDC in the wallet. That USDC does not sit
+> in our contract. It went straight into a DeFindex vault and stays there until
+> the campaign settles. If the campaign misses its target, investors get it
+> back from the vault."
 
-Proof tab.
+## 3:20: back to lira
 
-**Geçerli kanıtı doğrula** → green.
+Switch to Kemal Güler's wallet → **Avansı Çek** → **Avansı IBAN'a Çek** → pick a
+bank card → **USDC Gönder ve TL'ye Çevir**. The steps tick off; the result shows
+the lira amount and a FAST reference.
 
-> "That is the chain's own verdict."
-
-**Eşiği 90 tona şişir ve tekrar dene** → red.
-
-> "Same proof. I only changed the claim to 90 tonnes. The chain refuses."
-
-**Başka bir hesaptan tekrar gönder** → red.
-
-> "And a valid proof lifted off the network and replayed from someone else's
-> account is refused too — the proof is bound to the farmer's address."
-
-**Spend the most time here.** Anyone can show a green tick. Two refusals are
-what make the green one mean something.
-
-## 3:10 — the lira rail
-
-Investor tab → 500 TRY → **Yatırma başlat**.
-
-> "Real SEP-10 authentication, real SEP-38 quote, real testnet USDC landing in
-> the wallet. Turkish lira in, spendable balance out. The farmer withdraws the
-> advance back to an IBAN through the same anchor."
-
-## 3:30 — the vault, and why it is not decoration
-
-Fund the campaign.
-
-> "That USDC does not sit in our contract. It went straight into a yield vault
-> and it stays there until the campaign settles.
->
-> Here is why that is load-bearing rather than a nice extra. In an economy
-> running this much inflation, backing a campaign that then fails to reach its
-> goal means your money sat idle for 45 days — that is a real loss. So the
-> rational move is to wait until a campaign is nearly funded. And if everyone
-> waits, nothing ever funds.
->
-> Yield-bearing escrow removes the penalty for going first. Our contract test
-> asserts it: a *failed* campaign returns 330 USDC on 300 staked."
-
-## 3:50 — close
-
-> "Zero-knowledge, so the grower keeps their commercial secret. A vault, so
-> committing early costs nothing. A lira anchor, so the money is actually
-> spendable. Remove any one of the three and the product stops working."
+> "The advance went back through the same anchor: the IBAN over SEP-12, the
+> USDC paid to the anchor with its memo, lira out. Remove the ZK, the vault or
+> the anchor and the product stops working."
 
 ---
 
@@ -115,42 +86,39 @@ Fund the campaign.
 
 **"Is the ZK real or a mock?"**
 Real. circom, 9,981 constraints, Groth16 over BN254, verified on chain with
-`env.crypto().bn254()`. `node scripts/prove-on-testnet.mjs` runs it in front of
-them; the rejection cases are the proof.
+`env.crypto().bn254()`. The two rejections in the demo are the evidence.
 
 **"Why should a farmer repay?"**
 The campaign sits under a cooperative membership, and the cooperative is the
-buyer — repayment is netted from harvest proceeds, not chased from an
-individual. On top of that, repayment raises an anonymous credit tier tied to
-the nullifier, so defaulting costs next season's cheaper capital. That is the
-mechanism microfinance already runs on.
+buyer, so repayment is netted from harvest proceeds rather than chased from an
+individual. Repayment also raises an anonymous credit tier tied to the
+nullifier, so defaulting costs next season's cheaper capital.
 
 **"Is this a security? What about regulation?"**
-Turkey has a licensed debt-based crowdfunding regime under SPK. The scaling
-path is partnership with a licensed platform, not ignoring it. *(Verify the
-current communiqué number before citing it — do not quote a number you have
-not checked.)*
+Turkey has a licensed debt-based crowdfunding regime under SPK. The scaling path
+is partnership with a licensed platform. *(Verify the current communiqué number
+before citing it.)*
 
-**"Is the vault really DeFindex?"**
-Not on testnet right now — it is our own contract implementing DeFindex's
-`VaultTrait` signatures exactly, so the vault address can point at a live
-DeFindex vault with no code change. It exists so the tests do not depend on
-testnet liveness and so 45 days of yield fits in four minutes. Say this plainly;
-the README says it too.
+**"Is the vault really DeFindex? Where is the yield?"**
+Yes: a real DeFindex vault created through DeFindex's testnet factory, holding
+the USDC the anchor settles. On testnet it earns nothing, because DeFindex's
+testnet Blend strategy only accepts Blend's own test USDC. On mainnet the same
+vault takes a Blend USDC strategy. The contract tests show the yield path with a
+test twin: a failed campaign returns 330 USDC on 300 staked.
 
 **"What is the anchor?"**
 `tr-mock-anchor.fly.dev`, a testnet sandbox. The bank wire and KYC are
-simulated; the USDC settlement is genuine testnet activity with a transaction
-hash.
+simulated; the USDC legs are genuine testnet transactions with hashes.
 
 ---
 
 ## Before the room
 
-- [ ] Wallet pre-created and funded — friendbot plus a trustline is 20 s of dead air.
-- [ ] `npm run deploy` once, so `deployments.json` is current.
-- [ ] Proving artefacts warmed: load the Farmer tab once so the 8 MB is cached.
-- [ ] A campaign already open, so the Investor tab is not empty.
+- [ ] Both services running, campaigns visible on the Kampanyalar page.
+- [ ] Investor wallet prepared and loaded with 3,000 TRY (about 61 USDC).
+- [ ] Kemal Güler's key (campaign #6 in `.harvest/demo-farmers.json`) imported
+      into Freighter and the account prepared.
+- [ ] One Freighter signature rehearsed on the demo laptop.
+- [ ] Proving artefacts warmed: open Kampanya Başlat once so the 8 MB is cached.
 - [ ] Explorer tab open on the verifier.
-- [ ] Phone hotspot ready. Venue wifi fails; the whole ZK half still works offline,
-      only the chain calls need network.
+- [ ] Phone hotspot ready; the proof works offline, the chain calls do not.

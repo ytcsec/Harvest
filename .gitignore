@@ -14,3 +14,17 @@ contracts/test_snapshots/
 dist/
 packages/web/public/zk/*.zkey
 packages/web/public/zk/*.wasm
+packages/frontend/public/zk/*.zkey
+packages/frontend/public/zk/*.wasm
+packages/frontend/.next/
+packages/frontend/next-env.d.ts
+
+# Kişisel sunum ve belge dosyaları (depoya gönderilmez)
+docs/*.pdf
+docs/*.pptx
+docs/HARVEST-Proje-Dokumani.html
+docs/SUNUM-KONUSMA-METNI.md
+docs/DEMO-REHBERI.md
+
+# Eski, ayrı bir React projesi kalıntısı
+/frontend/
