@@ -1,0 +1,19 @@
+{
+  "name": "@harvest/circuits",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Groth16 circuit proving harvest capacity above a threshold without revealing it",
+  "scripts": {
+    "build": "node build.mjs",
+    "prove": "node test/prove.mjs"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "^17.1.0",
+    "circomlib": "^2.0.5",
+    "circomlibjs": "^0.1.7",
+    "ffjavascript": "^0.3.0",
+    "snarkjs": "^0.7.5",
+    "@harvest/sdk": "*"
+  }
+}

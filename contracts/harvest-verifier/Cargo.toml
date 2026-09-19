@@ -1,0 +1,23 @@
+[package]
+name = "harvest_verifier"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+[dependencies]
+soroban-sdk = { workspace = true }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }
+# Used only by the tests, to turn snarkjs' decimal JSON into the byte encoding
+# the host expects. Soroban's own host implementation is arkworks-backed, so
+# going through arkworks here is the faithful way to build fixtures.
+ark-bn254 = "0.5"
+ark-ff = "0.5"
+ark-serialize = "0.5"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

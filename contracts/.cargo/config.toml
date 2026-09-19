@@ -1,0 +1,13 @@
+# Windows/MinGW host builds only.
+#
+# `crate-type = ["cdylib", "rlib"]` is required so `stellar contract build`
+# emits a wasm cdylib. Cargo also builds that cdylib for the *host* during
+# `cargo test`, and linking soroban-sdk + arkworks into one Windows DLL blows
+# past the PE export-ordinal limit:
+#
+#     ld.exe: error: export ordinal too large: 73408
+#
+# Nothing ever loads the host DLL -- only the rlib is linked into the test
+# binary -- so dropping its export table is free. The wasm target is untouched.
+[target.x86_64-pc-windows-gnu]
+rustflags = ["-C", "link-arg=-Wl,--exclude-all-symbols"]

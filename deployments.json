@@ -1,0 +1,21 @@
+{
+  "usdc": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+  "verifier": "CANPSPHJIKTFE7G63BO6TG5M53RU7DKRH26RWKHFCMO6GKQFQAKIKL3B",
+  "vault": "CDJQVZFZ7NBBOCDOZVDAD2RWIDKC35MGPBGVYQVVZKCD7HFX5UMB34W3",
+  "campaign": "CDBFK23UIF6U2LQFLS5SHRFSKUQACKN6XL63DJ52F7CCWNKDBJHKTQRH",
+  "init": {
+    "verifier": true,
+    "issuer": true,
+    "vault": true,
+    "campaign": true
+  },
+  "network": "testnet",
+  "deployer": "GCQ6Y2X7AUJUNUEKKOPA2N7U64XTSYIXPNQR5EMSLJTYXGTSLYAQLLVS",
+  "issuer": {
+    "ax": "1ff9d8f9a114717f369f61b52053249e38db26f91f905f31e674c012212c8027",
+    "ay": "1463a3b0118b9a310fff353fd7610ca5c1a729355ff013af8f57860911a7942c",
+    "label": "Giresun Findik Tarim Satis Kooperatifi"
+  },
+  "anchor": "https://tr-mock-anchor.fly.dev",
+  "explorer": "https://stellar.expert/explorer/testnet/contract/CDBFK23UIF6U2LQFLS5SHRFSKUQACKN6XL63DJ52F7CCWNKDBJHKTQRH"
+}

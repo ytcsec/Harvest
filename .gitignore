@@ -1,0 +1,16 @@
+node_modules/
+dist/
+target/
+.ptau/
+circuits/build/*.zkey
+circuits/build/*.r1cs
+circuits/build/*.sym
+.env
+.env.local
+*.log
+.DS_Thumbs
+contracts/test_snapshots/
+.harvest/
+dist/
+packages/web/public/zk/*.zkey
+packages/web/public/zk/*.wasm

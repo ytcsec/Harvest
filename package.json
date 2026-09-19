@@ -1,0 +1,30 @@
+{
+  "name": "harvest-protocol",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "circuits"
+  ],
+  "scripts": {
+    "circuit:build": "npm -w @harvest/circuits run build",
+    "circuit:test": "npm -w @harvest/circuits run prove",
+    "circuit:fixtures": "node circuits/export-fixtures.mjs",
+    "contracts:build": "cd contracts && stellar contract build",
+    "contracts:test": "cd contracts && cargo test",
+    "deploy": "node scripts/deploy.mjs",
+    "issuer": "npm -w @harvest/issuer start",
+    "web": "npm -w @harvest/web run dev",
+    "e2e": "node scripts/e2e.mjs",
+    "verify": "node scripts/prove-on-testnet.mjs",
+    "anchor": "node scripts/anchor-roundtrip.mjs",
+    "test": "npm run circuit:test && npm run contracts:test && npm run e2e"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0",
+    "snarkjs": "^0.7.5"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "^17.1.0"
+  }
+}

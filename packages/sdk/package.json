@@ -1,0 +1,20 @@
+{
+  "name": "@harvest/sdk",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.mjs",
+  "exports": {
+    ".": "./src/index.mjs",
+    "./attestation": "./src/attestation.mjs",
+    "./encoding": "./src/encoding.mjs",
+    "./anchor": "./src/anchor.mjs",
+    "./soroban": "./src/soroban.mjs",
+    "./bytes": "./src/bytes.mjs"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "^14.0.0",
+    "circomlibjs": "^0.1.7",
+    "@noble/hashes": "^1.6.1"
+  }
+}
