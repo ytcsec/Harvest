@@ -131,7 +131,7 @@ Stated plainly, because being caught is far more expensive than volunteering it.
 - The app is in Turkish and English, and shows amounts in USDC, USD or TRY.
 - Campaigns run in six countries besides Türkiye (Colombia, Vietnam, Kenya open; India, Kazakhstan, Chile repaid), opened by `scripts/open-global-campaigns.mjs`. Their records are signed with the one cooperative key the verifier has accredited; the verifier accepts any number of issuers (`accredit_issuer`), so in production each country's cooperative signs with its own key. Lira is the only fiat rail wired today; other countries plug in their own SEP-6 anchor.
 - Contracts are **unaudited** and testnet-only.
-- This repository was built in the days before the event, not during it.
+
 
 ## 6. Run it
 
