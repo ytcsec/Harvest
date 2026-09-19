@@ -73,18 +73,20 @@ const write = (k: string, v: string) => {
 };
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>("en");
+  const [locale, setLocaleState] = useState<Locale>("tr");
   const [currency, setCurrencyState] = useState<Currency>("USDC");
   const [tryPerUsdc, setTryPerUsdc] = useState<number | null>(null);
 
-  // English by default; a stored choice overrides it.
-  //
-  // The browser's own language used to decide, which read well until you were
-  // demonstrating the English copy on a Turkish laptop and it kept switching
-  // back. The toggle in the header is the way in, and it persists.
+  // Stored choice first, then the browser's language: Turkish browsers get
+  // Turkish, everyone else English.
   useEffect(() => {
     const stored = read(LOCALE_KEY);
-    const initial: Locale = stored === "tr" || stored === "en" ? stored : "en";
+    const initial: Locale =
+      stored === "tr" || stored === "en"
+        ? stored
+        : typeof navigator !== "undefined" && navigator.language?.toLowerCase().startsWith("tr")
+          ? "tr"
+          : "en";
     setLocaleState(initial);
     const storedCurrency = read(CURRENCY_KEY);
     if (storedCurrency === "USDC" || storedCurrency === "USD" || storedCurrency === "TRY") {

@@ -123,6 +123,15 @@ const REGISTRY = {
     deedRef: "Tokat/Merkez ada 132 parsel 5",
     landDecares: 480,
   },
+  "GFK-2026-0418": {
+    farmer: "Kemal Güler",
+    parcel: "Tokat/Merkez ada 132 parsel 5",
+    crop: "patates",
+    cropLabel: { tr: "Tokat Patatesi", en: "Tokat Potato" },
+    region: { tr: "Tokat / Merkez", en: "Tokat / Merkez" },
+    expectedYieldKg: 120_000,
+    season: 2026,
+  },
 };
 
 // ---------------------------------------------------------------------------

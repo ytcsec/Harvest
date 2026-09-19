@@ -149,6 +149,8 @@ for (const c of CAMPAIGNS) {
     i128(toStroops(c.targetUsdc)),
     u64(deadline),
     u32(c.returnPercent * 100),
+    // The grower can start drawing once half the target is raised.
+    u32(5_000),
   ]);
   const id = Number(created.value);
   console.log(`    #${id} created: ${created.explorer}`);

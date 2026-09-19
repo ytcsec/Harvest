@@ -16,6 +16,10 @@ export interface ChainCampaign {
   shares: number;
   deadline: number;
   returnPercent: number;
+  /** Share of the target, in percent, after which the grower can draw. */
+  minPercent: number;
+  /** Principal the grower has drawn so far. */
+  disbursed: number;
   status: CampaignStatus;
   investorPool: number;
 }

@@ -51,6 +51,7 @@ function Summary({ campaign }: { campaign: CampaignView }) {
         threshold: ct.threshold(campaign),
         deadline: ct.deadline(campaign),
         rate: campaign.returnPercent,
+        min: campaign.minPercent,
       })}
     </p>
   );
@@ -148,6 +149,15 @@ export default function CampaignDetailPage() {
   const amount = Number(pledgeAmount) || 0;
   const insufficient = balances.usdc === null || balances.usdc < amount;
   const deadlinePassed = campaign.status === "Funding" && !campaign.isOpen;
+  // Partial funding: from the minimum on the grower draws what has come in,
+  // and draws again as more arrives, until the target or the deadline.
+  const EPS = 1e-7;
+  const minimum = (campaign.target * campaign.minPercent) / 100;
+  const minMet = campaign.raised + EPS >= minimum;
+  const available = Math.max(0, campaign.raised - campaign.disbursed);
+  const fundingClosed = campaign.raised + EPS >= campaign.target || campaign.deadline * 1000 < Date.now();
+  const drawPhase = isFarmer && (campaign.status === "Funding" || campaign.status === "Funded") && minMet;
+  const canDraw = drawPhase && (available > EPS || fundingClosed);
   const canClaim =
     (campaign.status === "Repaid" || campaign.status === "Refunding") &&
     (position?.invested ?? 0) > 0 &&
@@ -190,6 +200,32 @@ export default function CampaignDetailPage() {
         </div>
       );
     }
+    if (canDraw) {
+      const drawing = available > EPS;
+      return (
+        <div className="space-y-3">
+          {!fundingClosed && <p className={note}>{t("detail.drawOpenNote", { min: percent(campaign.minPercent) })}</p>}
+          <button
+            type="button"
+            disabled={Boolean(busy)}
+            onClick={() =>
+              run(
+                A.disburse,
+                disburse,
+                drawing ? t("detail.toasts.disbursed", { amount: money(available) }) : t("detail.toasts.finalized"),
+              )
+            }
+            className={primaryButton}
+          >
+            {busy === A.disburse && <Loader2 className="w-4 h-4 animate-spin" />}
+            <span>{drawing ? t("detail.disburseButton", { amount: money(available) }) : t("detail.finalizeButton")}</span>
+          </button>
+        </div>
+      );
+    }
+    if (drawPhase) {
+      return <p className={note}>{t("detail.drawnNote")}</p>;
+    }
     if (campaign.isOpen) {
       return (
         <button type="button" onClick={() => (wallet ? setIsModalOpen(true) : openWallet())} className={primaryButton}>
@@ -203,6 +239,9 @@ export default function CampaignDetailPage() {
           {t("detail.loginToAct")}
         </button>
       );
+    }
+    if (deadlinePassed && minMet) {
+      return <p className={note}>{t("detail.minMetNote")}</p>;
     }
     if (deadlinePassed) {
       return (
@@ -474,14 +513,26 @@ assert:   yield_kg >= threshold_kg ✓`}
             <div className="font-display text-5xl text-harvest-earth leading-none">{money(campaign.raised)}</div>
             <div className="mt-2 text-xs text-harvest-muted">{t("detail.target", { amount: money(campaign.target) })}</div>
 
-            <div className="mt-6 h-[3px] w-full overflow-hidden rounded-full bg-harvest-cream">
-              <div className="h-full rounded-full bg-harvest-field transition-all duration-500" style={{ width: `${campaign.percent}%` }} />
+            <div className="relative mt-6">
+              <div className="h-[3px] w-full overflow-hidden rounded-full bg-harvest-cream">
+                <div className="h-full rounded-full bg-harvest-field transition-all duration-500" style={{ width: `${campaign.percent}%` }} />
+              </div>
+              {campaign.minPercent < 100 && (
+                <div
+                  className="absolute -top-1 h-[11px] w-0.5 rounded-full bg-harvest-earth"
+                  style={{ left: `${campaign.minPercent}%` }}
+                  title={t("detail.minRow")}
+                  aria-hidden
+                />
+              )}
             </div>
 
             <dl className="mt-6 text-sm">
               {[
                 [t("detail.rowProgress"), `${campaign.percent}%`],
                 [t("detail.rowTime"), campaign.isOpen ? ct.daysLeft(campaign) : statusText],
+                [t("detail.minRow"), `${percent(campaign.minPercent)} · ${money(minimum)}`],
+                ...(campaign.disbursed > 0 ? [[t("detail.drawnRow"), money(campaign.disbursed)]] : []),
                 [t("detail.harvestReturn"), percent(campaign.returnPercent)],
                 [t("detail.zkThreshold"), ct.threshold(campaign)],
                 ...(wallet ? [[t("detail.yourContribution"), money(position?.invested ?? 0)]] : []),

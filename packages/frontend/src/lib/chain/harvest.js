@@ -125,6 +125,7 @@ export async function createCampaign({
   targetUsdc,
   days,
   returnPercent,
+  minPercent = 50,
 }) {
   const deadline = BigInt(Math.floor(Date.now() / 1000) + days * 86_400);
   // The proof has already passed `checkProofOnChain`, so an error code here is
@@ -143,6 +144,7 @@ export async function createCampaign({
       i128(toStroops(targetUsdc)),
       u64(deadline),
       u32(Math.round(returnPercent * 100)),
+      u32(Math.round(minPercent * 100)),
     ],
   });
 }
@@ -181,6 +183,8 @@ export async function getCampaign(id) {
     returnPercent: Number(c.return_bps) / 100,
     status: readStatus(c.status),
     investorPool: fromStroops(c.investor_pool),
+    minPercent: Number(c.min_bps ?? 10_000) / 100,
+    disbursed: fromStroops(c.disbursed ?? 0),
   };
 }
 
@@ -232,6 +236,8 @@ const CAMPAIGN_ERRORS = {
   10: ["talep edilecek bir pay yok", "there is nothing to claim"],
   11: ["pay zaten talep edilmiş", "the share has already been claimed"],
   12: ["geçersiz kampanya parametreleri", "invalid campaign parameters"],
+  14: ["toplanan tutar henüz asgari eşiğe ulaşmadı", "less than the campaign's minimum has been raised"],
+  15: ["çekilecek yeni katkı yok", "there is nothing new to draw yet"],
 };
 
 /**

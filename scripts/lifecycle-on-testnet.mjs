@@ -149,6 +149,7 @@ const created = await call(farmer, "create_campaign", [
   i128(toStroops(TARGET)),
   u64(deadline),
   u32(RETURN_PERCENT * 100),
+  u32(5_000),
 ]);
 const id = Number(created.value);
 tx(`campaign #${id}`, created);

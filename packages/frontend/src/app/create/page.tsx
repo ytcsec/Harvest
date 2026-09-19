@@ -25,6 +25,7 @@ import {
 import { commitmentForIssuer, proveCapacity } from "@/lib/chain/prover";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { useCampaignText } from "@/i18n/campaign";
+import { ProofChallenge } from "@/components/campaign/ProofChallenge";
 
 /**
  * The farmer flow, behind the original four-step wizard design:
@@ -71,7 +72,7 @@ const labelClass = "text-sm font-semibold text-stone-700 block mb-1.5";
 
 export default function CreateCampaignPage() {
   const { wallet, ready, openWallet, notify } = useWallet();
-  const { t, tList, locale, number } = useLocale();
+  const { t, tList, locale, number, percent } = useLocale();
   const { tons } = useCampaignText();
   const STEPS = tList("create.steps");
   const kg = (n: number) => `${number(n, 0)} kg`;
@@ -97,6 +98,7 @@ export default function CreateCampaignPage() {
     targetUsdc: "120",
     returnPercent: "15",
     days: "30",
+    minPercent: "50",
     crop: "",
     region: "",
   });
@@ -222,6 +224,7 @@ export default function CreateCampaignPage() {
         targetUsdc: Number(form.targetUsdc),
         days: Number(form.days),
         returnPercent: Number(form.returnPercent),
+        minPercent: Number(form.minPercent),
       });
       setCreated({ id: Number(res.value), explorer: res.explorer });
       setStep(4);
@@ -484,6 +487,7 @@ export default function CreateCampaignPage() {
                 </div>
               )}
 
+              {zk && wallet && <ProofChallenge address={wallet.address} claim={zk.claim} proof={zk.proof} />}
 
               <div className="flex justify-between pt-4 border-t border-stone-100">
                 <button
@@ -564,6 +568,24 @@ export default function CreateCampaignPage() {
                     onChange={(e) => setForm({ ...form, days: e.target.value })}
                     className={inputClass}
                   />
+                </div>
+                <div>
+                  <label htmlFor="min" className={labelClass}>
+                    {t("create.min")}
+                  </label>
+                  <select
+                    id="min"
+                    value={form.minPercent}
+                    onChange={(e) => setForm({ ...form, minPercent: e.target.value })}
+                    className={inputClass}
+                  >
+                    {["50", "60", "75", "100"].map((p) => (
+                      <option key={p} value={p}>
+                        {p === "100" ? t("create.minAll") : percent(Number(p))}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-stone-500 mt-1">{t("create.minHint")}</p>
                 </div>
                 <div>
                   <label htmlFor="region" className={labelClass}>
