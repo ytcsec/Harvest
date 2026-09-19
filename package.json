@@ -9,16 +9,21 @@
   "scripts": {
     "circuit:build": "npm -w @harvest/circuits run build",
     "circuit:test": "npm -w @harvest/circuits run prove",
-    "circuit:fixtures": "node circuits/export-fixtures.mjs",
+    "circuit:fixtures": "node circuits/export-fixtures.mjs && node circuits/export-enrolment-fixtures.mjs",
     "contracts:build": "cd contracts && stellar contract build",
     "contracts:test": "cd contracts && cargo test",
     "deploy": "node scripts/deploy.mjs",
+    "deploy:enrolment": "node scripts/deploy-enrolment.mjs",
     "issuer": "npm -w @harvest/issuer start",
-    "web": "npm -w @harvest/web run dev",
+    "frontend": "npm -w @harvest/frontend run dev",
+    "frontend:build": "npm -w @harvest/frontend run build",
     "e2e": "node scripts/e2e.mjs",
+    "enrol:e2e": "node scripts/enrol-e2e.mjs",
     "verify": "node scripts/prove-on-testnet.mjs",
+    "enrol": "node scripts/enrol-on-testnet.mjs",
     "anchor": "node scripts/anchor-roundtrip.mjs",
-    "test": "npm run circuit:test && npm run contracts:test && npm run e2e"
+    "test": "npm run circuit:test && npm run contracts:test && npm run e2e",
+    "enrol:reuse": "node scripts/enrol-reuse-check.mjs"
   },
   "devDependencies": {
     "playwright": "^1.63.0",

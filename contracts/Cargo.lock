@@ -851,6 +851,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "harvest_registry"
+version = "0.1.0"
+dependencies = [
+ "ark-bn254",
+ "ark-ff",
+ "harvest_verifier",
+ "serde",
+ "serde_json",
+ "soroban-sdk",
+]
+
+[[package]]
 name = "harvest_verifier"
 version = "0.1.0"
 dependencies = [

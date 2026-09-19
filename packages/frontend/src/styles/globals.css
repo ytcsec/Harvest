@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    border-color: theme("colors.harvest.border");
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background:
+      radial-gradient(circle at 88% 6%, rgba(221, 189, 114, 0.22), transparent 30rem),
+      linear-gradient(180deg, #f7f3e7 0%, #fbf8ef 44%, #f4eddd 100%);
+    background-attachment: fixed;
+    color: theme("colors.harvest.text");
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3 {
+    color: theme("colors.harvest.earth");
+  }
+
+  h1, h2 {
+    letter-spacing: -0.02em;
+  }
+
+  ::selection {
+    background-color: theme("colors.harvest.wheat");
+    color: theme("colors.harvest.earth");
+  }
+
+  a, button, input, select, textarea {
+    outline-color: theme("colors.harvest.gold");
+  }
+}
+
+@layer components {
+  .section-padding {
+    @apply px-5 md:px-8 lg:px-12;
+  }
+
+  .container-harvest {
+    @apply mx-auto max-w-7xl px-5 md:px-8;
+  }
+
+  /* Small label above a section title, as in the HARVEST.V2 design. */
+  .eyebrow {
+    @apply text-sm font-medium text-harvest-text;
+  }
+
+  .harvest-button {
+    @apply inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-sm font-semibold transition;
+  }
+
+  .harvest-button-dark {
+    @apply harvest-button bg-harvest-earth text-harvest-cream hover:bg-harvest-ink;
+  }
+
+  .harvest-button-light {
+    @apply harvest-button border border-harvest-border bg-harvest-paper text-harvest-earth hover:border-harvest-gold;
+  }
+
+  .harvest-button-cream {
+    @apply harvest-button bg-harvest-cream text-harvest-earth hover:bg-white;
+  }
+}
+
+/* Testimonials drift to the right and stop while the pointer is on them. */
+@keyframes marquee-right {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.marquee-track {
+  animation: marquee-right 70s linear infinite;
+}
+
+.marquee:hover .marquee-track,
+.marquee:focus-within .marquee-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+  }
+
+  .marquee {
+    overflow-x: auto;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

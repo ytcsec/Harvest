@@ -1,0 +1,22 @@
+[package]
+name = "harvest_registry"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+[dependencies]
+soroban-sdk = { workspace = true }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }
+# Dev-only on purpose. Depending on the verifier for the wasm build would
+# compile its #[contractimpl] entry points into this contract's wasm as well.
+harvest_verifier = { path = "../harvest-verifier" }
+ark-bn254 = "0.5"
+ark-ff = "0.5"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

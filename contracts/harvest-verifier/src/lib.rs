@@ -249,8 +249,12 @@ impl HarvestVerifier {
         }
     }
 
-    /// Same check, but reports the outcome instead of trapping. Useful for the
-    /// UI's "try an invalid proof" demo path, where a failure is the point.
+    /// Same check, but reports the outcome instead of trapping.
+    ///
+    /// The app asks this in simulation before it spends a transaction, so a
+    /// proof that would be refused costs nothing. `prove-on-testnet.mjs` uses it
+    /// the other way round, to show the chain turning down claims that do not
+    /// hold.
     pub fn check_capacity(env: Env, caller: Address, claim: CapacityClaim, proof: Proof) -> bool {
         Self::verify_capacity(env, caller, claim, proof).is_ok()
     }

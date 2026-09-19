@@ -1,16 +1,32 @@
+# dependencies
 node_modules/
+
+# build output
 dist/
+out/
 target/
+*.tsbuildinfo
+.next/
+next-env.d.ts
+
+# circuit artefacts -- rebuilt with `npm run circuit:build`.
+# The .wasm and verification_key.json are kept: the verifier contract is set up
+# against them, so they are part of the deployment, not a build by-product.
 .ptau/
 circuits/build/*.zkey
 circuits/build/*.r1cs
 circuits/build/*.sym
+packages/frontend/public/zk/*.zkey
+packages/frontend/public/zk/*.wasm
+
+# secrets and local state -- the issuer signing key and the demo farmers'
+# Stellar secret keys live here. `npm run deploy` regenerates them.
+.harvest/
 .env
 .env.local
+
+# misc
 *.log
-.DS_Thumbs
+.DS_Store
+Thumbs.db
 contracts/test_snapshots/
-.harvest/
-dist/
-packages/web/public/zk/*.zkey
-packages/web/public/zk/*.wasm

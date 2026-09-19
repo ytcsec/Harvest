@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["harvest-verifier", "harvest-campaign", "mock-defindex-vault"]
+members = ["harvest-verifier", "harvest-campaign", "harvest-registry", "mock-defindex-vault"]
 
 [workspace.dependencies]
 soroban-sdk = "27.0.6"

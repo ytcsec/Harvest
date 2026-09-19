@@ -31,7 +31,13 @@ export class AnchorClient {
    * @param {string} [opts.homeDomain] Anchor home domain, without scheme.
    * @param {typeof fetch} [opts.fetch]
    */
-  constructor({ homeDomain = DEFAULT_HOME_DOMAIN, fetch: f = globalThis.fetch } = {}) {
+  constructor({
+    homeDomain = DEFAULT_HOME_DOMAIN,
+    // Wrapped rather than stored bare: browsers throw "Illegal invocation" when
+    // `fetch` is called as a method of anything but `window`. Node does not
+    // care, which is why the scripts never hit it.
+    fetch: f = (...args) => globalThis.fetch(...args),
+  } = {}) {
     this.homeDomain = homeDomain;
     this.base = `https://${homeDomain}`;
     this.fetch = f;
@@ -160,6 +166,26 @@ export class AnchorClient {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ amount: String(amount) }),
+    });
+  }
+
+  /**
+   * SEP-12: register the customer's details with the anchor.
+   *
+   * For a withdrawal this is where the payout IBAN goes -- SEP-6 `/withdraw`
+   * itself has no bank field for `bank_account`. The sandbox auto-approves and
+   * falls back to its own IBAN when none is given; a production anchor uses
+   * the same endpoint for real KYC.
+   *
+   * @param {Record<string, string>} fields e.g. `{ bank_account_number, bank_name }`
+   */
+  async putCustomer(fields) {
+    const { kycServer } = await this.discover();
+    if (!kycServer) throw new Error(`${this.homeDomain} does not publish a SEP-12 KYC server`);
+    return this.#json(`${kycServer}/customer`, {
+      method: "PUT",
+      headers: { ...this.#auth(), "content-type": "application/json" },
+      body: JSON.stringify(fields),
     });
   }
 

@@ -14,16 +14,51 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 import { homedir } from "node:os";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BUILD = join(HERE, "build");
 const CACHE = join(HERE, ".ptau");
-const CIRCUIT = "harvest_capacity";
+
+/**
+ * Which circuit to build:
+ *
+ *   node build.mjs                    # harvest_capacity
+ *   node build.mjs harvest_enrolment  # the membership-document circuit
+ *
+ * The capacity circuit keeps the unsuffixed output names it has always had --
+ * `deploy.mjs`, `sync-zk.mjs` and the app all read `build/verification_key.json`
+ * -- so adding a second circuit does not move anything out from under them.
+ */
+const DEFAULT_CIRCUIT = "harvest_capacity";
+const CIRCUIT = process.argv[2] ?? DEFAULT_CIRCUIT;
+const suffix = CIRCUIT === DEFAULT_CIRCUIT ? "" : `${CIRCUIT}_`;
+const VK_OUT = `build/${suffix}verification_key.json`;
+const PROVENANCE_OUT = `${suffix}setup-provenance.json`;
 
 const CIRCOM =
   process.env.CIRCOM_PATH ?? join(homedir(), ".harvest-bin", "circom.exe");
-const SNARKJS = join(HERE, "node_modules", "snarkjs", "build", "cli.cjs");
+
+/**
+ * npm hoists workspace dependencies to the repo root when nothing conflicts, so
+ * snarkjs may sit in either `circuits/node_modules` or `../node_modules`, and
+ * which one depends on the rest of the tree at install time. Resolving instead
+ * of hardcoding keeps `npm run circuit:build` working after a fresh install.
+ */
+const require = createRequire(import.meta.url);
+const SNARKJS = (() => {
+  for (const base of [HERE, resolve(HERE, "..")]) {
+    const candidate = join(base, "node_modules", "snarkjs", "build", "cli.cjs");
+    if (existsSync(candidate)) return candidate;
+  }
+  return join(dirname(require.resolve("snarkjs")), "cli.cjs");
+})();
+
+/** circomlib resolves the same way; give circom both roots to search. */
+const INCLUDE_PATHS = [join(HERE, "node_modules"), resolve(HERE, "..", "node_modules")].filter(
+  existsSync,
+);
 
 function sh(cmd, args, opts = {}) {
   console.log(`  $ ${cmd === process.execPath ? "node" : cmd} ${args.join(" ")}`);
@@ -114,8 +149,7 @@ sh(CIRCOM, [
   "--sym",
   "-o",
   "build",
-  "-l",
-  "node_modules",
+  ...INCLUDE_PATHS.flatMap((p) => ["-l", p]),
 ]);
 
 console.log("\n[2/5] inspecting constraint system");
@@ -144,17 +178,11 @@ snarkjs(
 );
 
 console.log("\n[5/5] exporting verification key");
-snarkjs(
-  "zkey",
-  "export",
-  "verificationkey",
-  `build/${CIRCUIT}_final.zkey`,
-  "build/verification_key.json",
-);
+snarkjs("zkey", "export", "verificationkey", `build/${CIRCUIT}_final.zkey`, VK_OUT);
 
-const vk = JSON.parse(readFileSync(join(BUILD, "verification_key.json"), "utf8"));
+const vk = JSON.parse(readFileSync(join(HERE, VK_OUT), "utf8"));
 writeFileSync(
-  join(BUILD, "setup-provenance.json"),
+  join(BUILD, PROVENANCE_OUT),
   JSON.stringify(
     { phase1: setupProvenance, phase2: "single local contribution", constraints, ptauPower: power },
     null,
@@ -168,7 +196,7 @@ console.log(`  protocol         : ${vk.protocol}`);
 console.log(`  public signals   : ${vk.nPublic}`);
 console.log(`  proving key      : build/${CIRCUIT}_final.zkey`);
 console.log(`  witness wasm     : build/${CIRCUIT}_js/${CIRCUIT}.wasm`);
-console.log(`  verification key : build/verification_key.json`);
+console.log(`  verification key : ${VK_OUT}`);
 if (vk.nPublic !== 6) {
   throw new Error(`expected 6 public signals, got ${vk.nPublic} -- contract IC size would mismatch`);
 }

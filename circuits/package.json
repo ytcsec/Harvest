@@ -5,8 +5,12 @@
   "type": "module",
   "description": "Groth16 circuit proving harvest capacity above a threshold without revealing it",
   "scripts": {
-    "build": "node build.mjs",
-    "prove": "node test/prove.mjs"
+    "build": "node build.mjs && node build.mjs harvest_enrolment",
+    "build:capacity": "node build.mjs",
+    "build:enrolment": "node build.mjs harvest_enrolment",
+    "prove": "node test/prove.mjs && node test/enrol.mjs",
+    "prove:capacity": "node test/prove.mjs",
+    "prove:enrolment": "node test/enrol.mjs"
   },
   "dependencies": {
     "@stellar/stellar-sdk": "^17.1.0",
