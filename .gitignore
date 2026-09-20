@@ -10,10 +10,14 @@ target/
 next-env.d.ts
 
 # circuit artefacts -- rebuilt with `npm run circuit:build`.
-# The .wasm and verification_key.json are kept: the verifier contract is set up
-# against them, so they are part of the deployment, not a build by-product.
+# Three kinds are kept rather than ignored: the witness .wasm, the verification
+# keys, and the final proving keys. The verifier contracts are set up against
+# those keys, so they are part of the deployment rather than a build by-product,
+# and a clone can prove without rerunning the setup. The intermediate .zkey from
+# phase 2, the .r1cs and the .sym really are by-products.
 .ptau/
 circuits/build/*.zkey
+!circuits/build/*_final.zkey
 circuits/build/*.r1cs
 circuits/build/*.sym
 packages/frontend/public/zk/*.zkey
