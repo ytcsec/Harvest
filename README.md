@@ -1,8 +1,3 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="packages/frontend/public/logo-dark.png">
-  <img src="packages/frontend/public/logo-light.png" alt="Harvest" width="180">
-</picture>
-
 # Harvest
 
 **Finance the next harvest. Keep the real numbers private.** A farmer needs
@@ -719,5 +714,3 @@ Built by the [Harvest contributors](https://github.com/ytcsec/Harvest/graphs/con
 The repository's [MIT license](LICENSE) credits **Yusuf Taha Çimen**.
 
 ---
-
-**Prove you can deliver. Keep the underlying records private.**
