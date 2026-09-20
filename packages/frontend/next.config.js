@@ -7,6 +7,22 @@ const nextConfig = {
   },
   // The SDK is plain ESM source shared with the issuer and the scripts.
   transpilePackages: ["@harvest/sdk"],
+  // Proxy the cooperative (issuer) service through this same origin, so the
+  // browser never has to reach it directly. When the app is served from a
+  // public host (e.g. behind a Cloudflare tunnel), "localhost:8787" would
+  // resolve to the visitor's own machine; here Next.js forwards the request
+  // server-side to the issuer running next to it. Set NEXT_PUBLIC_ISSUER_URL
+  // to "/api/issuer" so client fetches hit this rewrite. Override the upstream
+  // with ISSUER_ORIGIN if the issuer runs elsewhere.
+  async rewrites() {
+    const issuerOrigin = process.env.ISSUER_ORIGIN ?? "http://localhost:8787";
+    return [
+      {
+        source: "/api/issuer/:path*",
+        destination: `${issuerOrigin}/:path*`,
+      },
+    ];
+  },
   experimental: {
     // src/lib/chain/deployments.js imports the repo-root deployments.json.
     externalDir: true,

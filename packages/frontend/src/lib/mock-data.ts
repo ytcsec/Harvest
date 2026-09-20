@@ -347,6 +347,14 @@ export const testimonials: Testimonial[] = [
 
 export const faqs: FAQ[] = [
   {
+    "q": "Çiftçinin beyanını nasıl kanıtlıyorsunuz?",
+    "a": "Rekolteyi çiftçi değil, akredite bir kooperatif kendi kaydından imzalar. Çiftçi tarayıcısında bir Groth16 sıfır bilgi kanıtı üretir: imzalı rekoltenin ilan edilen eşiğin üstünde olduğunu gösterir. Soroban'daki sözleşme hem kanıtı hem de kooperatifin akredite imzasını doğrular; böylece \"≥ X ton\" iddiası güvene değil kriptografiye dayanır, gerçek rakam gizli kalır."
+  },
+  {
+    "q": "Çiftçi yüksek para isteyip kandıramaz mı?",
+    "a": "İsteyebilir, ama avans yalnızca kampanyanın asgari eşiği toplanırsa açılır. Bu asgari süre dolana kadar toplanmazsa çiftçi hiçbir şey çekemez ve tüm katkılar kasadan iade edilir. Rekoltenin karşılayabileceğinden fazlasını istemek yalnızca aşması gereken çıtayı yükseltir; yani fazla istemek çiftçinin aleyhine çalışır."
+  },
+  {
     "q": "ZK kanıtı tam olarak neyi gösteriyor, neyi göstermiyor?",
     "a": "ZK kanıtı yalnızca \"üretimim X tonun üzerinde olacak\" ifadesini kanıtlar. Gerçek hasat miktarı, dekar başına verim, müşteri kontratları veya fiyatlarınız ifşa edilmez. Rakiplerinize karşı ticari sırrınız korunur."
   },

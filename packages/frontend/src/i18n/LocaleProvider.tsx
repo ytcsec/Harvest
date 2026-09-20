@@ -14,7 +14,11 @@ export type Locale = "tr" | "en";
 export type Currency = "USDC" | "USD" | "TRY";
 
 const DICTS: Record<Locale, Dict> = { tr, en };
-const LOCALE_KEY = "harvest.locale";
+// Versioned so the default can change cleanly: English is now the default, and
+// bumping the key retires any language a visitor's browser saved under the old
+// key (e.g. a "tr" chosen while Turkish was the default), so everyone starts in
+// English until they pick a language again.
+const LOCALE_KEY = "harvest.locale.v2";
 const CURRENCY_KEY = "harvest.currency";
 /** Public, CORS-open, no login: the anchor's own health report carries its rate. */
 const RATE_URL = "https://tr-mock-anchor.fly.dev/health";
@@ -73,20 +77,15 @@ const write = (k: string, v: string) => {
 };
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>("tr");
+  const [locale, setLocaleState] = useState<Locale>("en");
   const [currency, setCurrencyState] = useState<Currency>("USDC");
   const [tryPerUsdc, setTryPerUsdc] = useState<number | null>(null);
 
-  // Stored choice first, then the browser's language: Turkish browsers get
-  // Turkish, everyone else English.
+  // English is the default. An explicit earlier choice is honoured; otherwise
+  // everyone gets English, and Turkish stays one click away in the picker.
   useEffect(() => {
     const stored = read(LOCALE_KEY);
-    const initial: Locale =
-      stored === "tr" || stored === "en"
-        ? stored
-        : typeof navigator !== "undefined" && navigator.language?.toLowerCase().startsWith("tr")
-          ? "tr"
-          : "en";
+    const initial: Locale = stored === "tr" || stored === "en" ? stored : "en";
     setLocaleState(initial);
     const storedCurrency = read(CURRENCY_KEY);
     if (storedCurrency === "USDC" || storedCurrency === "USD" || storedCurrency === "TRY") {

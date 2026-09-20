@@ -156,6 +156,19 @@ export const tr = {
       body: "Kanıt doğrulaması, kampanyalar ve USDC hareketleri Stellar testnet'te gerçektir. Banka havalesi ve KYC, anchor'ın sandbox ortamında simüle edilir; tanıtım rakamları, kooperatif hikâyeleri ve yorumlar temsilidir.",
       button: "Kanıtın neyi gösterdiğine bakın",
     },
+    jury: {
+      eyebrow: "Akla ilk gelen sorular",
+      title: "Peki ya güven?",
+      body: "Bir jürinin ilk sorduğu iki soru — ve zincirdeki cevapları.",
+      q1Title: "Çiftçinin beyanını nasıl kanıtlıyoruz?",
+      q1Body:
+        "Çiftçi kendisi yazmıyor. Rekolteyi, akredite bir kooperatif kendi kaydından imzalıyor. Çiftçi de tarayıcısında bir sıfır bilgi (Groth16) kanıtı üretiyor: imzalı rekoltenin, ilan edilen eşiğin üstünde olduğunu gösteriyor. Soroban'daki sözleşme hem kanıtı hem de kooperatifin akredite imzasını doğruluyor — yani \"≥ X ton\" iddiası güvene değil, kriptografiye dayanıyor; gerçek rakam ise gizli kalıyor.",
+      q1Tag: "İmzalı kayıt · Groth16",
+      q2Title: "Çiftçi yüksek para isteyip kandıramaz mı?",
+      q2Body:
+        "İsteyebilir — ama avans yalnızca kampanyanın asgari eşiği toplanırsa açılıyor. Bu asgari, süre dolana kadar toplanmazsa çiftçi hiçbir şey çekemiyor ve tüm katkılar kasadan iade ediliyor. Rekoltenin karşılayabileceğinden fazlasını istemek, aşması gereken çıtayı yükseltmekten başka işe yaramıyor; yani fazla istemek çiftçinin aleyhine çalışıyor.",
+      q2Tag: "Asgari eşik · Aksi halde iade",
+    },
     ending: {
       eyebrow: "Yeni sezon sizinle başlar",
       title: ["Bırakın iyi şeyler", "büyüsün."],
@@ -401,6 +414,7 @@ export const tr = {
     s1Body: "Kooperatif kaydınızı açabilmek için adınız ve kimlik numaranız gerekiyor. Üyelik numarasını siz girmiyorsunuz — kayıt tamamlanınca kooperatif size veriyor.",
     applicant: "Başvuran",
     fullName: "Ad soyad",
+    namePlaceholder: "Ad Soyad",
     nationalId: "T.C. kimlik numarası",
     identityNote:
       "Kimlik bilgisi yalnızca kooperatife gider ve kanıtın içinde gizli girdi olarak kalır. Zincire gitmez.",

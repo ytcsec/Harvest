@@ -1,6 +1,7 @@
 import { HeroJourney } from "@/components/home/HeroJourney";
 import { CampaignGrid } from "@/components/home/CampaignGrid";
 import { Ending, FoundingQuote, FourSteps, HomeIntro } from "@/components/home/Editorial";
+import { JuryQuestions } from "@/components/home/JuryQuestions";
 import { ZKExplainer } from "@/components/home/ZKExplainer";
 import { StellarOnChain } from "@/components/home/StellarOnChain";
 import { WhyHarvest } from "@/components/home/WhyHarvest";
@@ -17,6 +18,7 @@ export default function Home() {
       <CampaignGrid />
       <FoundingQuote />
       <FourSteps />
+      <JuryQuestions />
       <ZKExplainer />
       <StellarOnChain />
       <WhyHarvest />

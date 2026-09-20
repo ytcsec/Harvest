@@ -400,7 +400,7 @@ export default function EnrolPage() {
                     value={applicant.fullName}
                     onChange={(e) => setApplicant({ ...applicant, fullName: e.target.value })}
                     className={inputClass}
-                    placeholder="Ad Soyad"
+                    placeholder={t("enrol.namePlaceholder")}
                   />
                 </div>
                 <div>

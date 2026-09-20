@@ -153,6 +153,19 @@ export const en: Dict = {
       body: "Proof verification, the campaigns and the USDC movements are real on Stellar testnet. The bank transfer and KYC are simulated in the anchor's sandbox; showcase figures, cooperative stories and testimonials are illustrative.",
       button: "See what a proof reveals",
     },
+    jury: {
+      eyebrow: "The first things people ask",
+      title: "But how is this trustworthy?",
+      body: "The two questions a jury asks first — and how the chain answers them.",
+      q1Title: "How do we prove the farmer's declaration?",
+      q1Body:
+        "The farmer does not write it. An accredited cooperative signs the yield from its own records, and the farmer generates a zero-knowledge (Groth16) proof in the browser showing that the signed yield clears the stated threshold. The contract on Soroban verifies both the proof and the cooperative's accredited signature — so the \"≥ X tonnes\" claim rests on cryptography, not trust, while the real figure stays private.",
+      q1Tag: "Signed record · Groth16",
+      q2Title: "Can't a farmer ask for too much and cheat?",
+      q2Body:
+        "They can ask — but the advance only unlocks if backers raise at least the campaign's minimum. If that floor is not reached by the deadline, the farmer draws nothing and every contribution is refunded from the vault. Asking for more than the harvest can back only raises the bar they must clear, so over-asking works against the farmer.",
+      q2Tag: "Minimum threshold · Refund otherwise",
+    },
     ending: {
       eyebrow: "The next season starts with you",
       title: ["Let good", "things grow."],
@@ -398,7 +411,8 @@ export const en: Dict = {
     s1Body: "The cooperative needs your name and national id to open your record. You do not type a membership number -- the cooperative hands you one once enrolment completes.",
     applicant: "Applicant",
     fullName: "Full name",
-    nationalId: "National id number",
+    namePlaceholder: "Name Surname",
+    nationalId: "National ID number",
     identityNote:
       "Your identity goes to the cooperative only, and stays a private input inside the proof. It never reaches the chain.",
 

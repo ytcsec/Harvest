@@ -86,6 +86,14 @@ export const testimonials: Testimonial[] = testimonialsTr.map((t) => ({
 
 export const faqs: FAQ[] = [
   {
+    q: "How do you prove the farmer's declaration?",
+    a: "The yield is signed not by the farmer but by an accredited cooperative, from its own records. The farmer generates a Groth16 zero-knowledge proof in the browser showing that the signed yield clears the stated threshold. The contract on Soroban verifies both the proof and the cooperative's accredited signature; the \"≥ X tonnes\" claim rests on cryptography, not trust, and the real figure stays private.",
+  },
+  {
+    q: "Can't a farmer ask for too much and cheat?",
+    a: "They can ask, but the advance only unlocks if backers raise at least the campaign's minimum. If that floor is not reached by the deadline, the farmer draws nothing and every contribution is refunded from the vault. Asking for more than the harvest can back only raises the bar they must clear, so over-asking works against the farmer.",
+  },
+  {
     q: "What exactly does the ZK proof show, and what does it not?",
     a: "The ZK proof proves only the statement \"my output will be above X tonnes\". The real harvest, yield per hectare, customer contracts and your prices are not disclosed. Your trade secret is protected from competitors.",
   },

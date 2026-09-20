@@ -4,7 +4,7 @@
  * in step with the language picker.
  */
 
-let current = "tr";
+let current = "en";
 
 export const setRuntimeLocale = (locale) => {
   current = locale === "en" ? "en" : "tr";

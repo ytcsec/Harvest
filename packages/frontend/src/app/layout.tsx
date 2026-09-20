@@ -27,7 +27,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="tr" className={dmSans.variable}>
+    <html lang="en" className={dmSans.variable}>
       <body className="font-sans antialiased bg-harvest-cream text-stone-900 min-h-screen flex flex-col selection:bg-harvest-wheat selection:text-harvest-earth">
         <LocaleProvider>
           <WalletProvider>
