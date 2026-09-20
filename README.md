@@ -232,6 +232,17 @@ does not call the registry directly.
 | [`packages/issuer/server.mjs`](packages/issuer/server.mjs) | Demo cooperative records, application review, membership binding and credential signing |
 | [`packages/frontend`](packages/frontend) | Next.js 14 / React 18 interface, browser proving, localization, wallets and campaign actions |
 | [`scripts`](scripts) | Circuit/deployment support, browser checks and testnet demonstrations |
+| [`docs`](docs) | Contract reference, architecture notes, the demo runbook and the roadmap |
+
+Longer references live in [`docs`](docs):
+
+| Document | What it covers |
+|---|---|
+| [`docs/CONTRACTS.md`](docs/CONTRACTS.md) | Addresses, types, function tables, error codes and the superseded deployments |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | The circuits, point encoding, what the verifier enforces beyond the pairing, vault authorization and settlement |
+| [`docs/DEMO.md`](docs/DEMO.md) | A five-minute walkthrough, the questions it draws and a pre-demo checklist |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Shipped, next in priority order, and what was cut with reasons |
+| [`docs/SKILLS_USED.md`](docs/SKILLS_USED.md) | The two official Stellar skill files used, and what each changed |
 
 ### The campaign contract
 
@@ -279,6 +290,10 @@ English messages.
 Code 13 is deliberately unused. Callers already read `#13` from the USDC token
 contract as "no trustline", and a campaign call surfaces errors from both
 contracts.
+
+[`docs/CONTRACTS.md`](docs/CONTRACTS.md) carries the same reference for the
+verifier, the registry and the vault, with the types and the superseded
+addresses.
 
 ### Stellar integrations
 
@@ -494,15 +509,15 @@ interact through Harvest's funding and claim functions.
 
 ## Stellar skill files used
 
-The project's [original development notes](https://github.com/ytcsec/Harvest/blob/5940d8e/docs/SKILLS_USED.md)
-record two official Stellar skill files used during development:
+[`docs/SKILLS_USED.md`](docs/SKILLS_USED.md) records two official Stellar skill
+files used during development:
 
 | Skill path | Recorded use |
 |---|---|
 | `skills/zk-proofs/SKILL.md` | BN254 curve choice, point encoding, proof replay defenses, public-input policy and separation of verification from campaign logic |
 | `skills/standards/SKILL.md` | SEP-6 flow selection and the SEP-10 / SEP-12 authentication and customer-data pairing |
 
-Those historical notes explain the development decisions; they are not an
+Those notes explain the development decisions; they are not an
 independent security audit. Current behavior is described from the source files
 linked above, including the enrolment, passkey and DeFindex work added later.
 
