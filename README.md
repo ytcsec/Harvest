@@ -242,7 +242,6 @@ Longer references live in [`docs`](docs):
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | The circuits, point encoding, what the verifier enforces beyond the pairing, vault authorization and settlement |
 | [`docs/DEMO.md`](docs/DEMO.md) | A five-minute walkthrough, the questions it draws and a pre-demo checklist |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Shipped, next in priority order, and what was cut with reasons |
-| [`docs/SKILLS_USED.md`](docs/SKILLS_USED.md) | The two official Stellar skill files used, and what each changed |
 
 ### The campaign contract
 
@@ -509,15 +508,15 @@ interact through Harvest's funding and claim functions.
 
 ## Stellar skill files used
 
-[`docs/SKILLS_USED.md`](docs/SKILLS_USED.md) records two official Stellar skill
-files used during development:
+Two official Stellar skill files were consulted during development, and what
+each one changed is recorded below:
 
 | Skill path | Recorded use |
 |---|---|
 | `skills/zk-proofs/SKILL.md` | BN254 curve choice, point encoding, proof replay defenses, public-input policy and separation of verification from campaign logic |
 | `skills/standards/SKILL.md` | SEP-6 flow selection and the SEP-10 / SEP-12 authentication and customer-data pairing |
 
-Those notes explain the development decisions; they are not an
+These rows explain the development decisions; they are not an
 independent security audit. Current behavior is described from the source files
 linked above, including the enrolment, passkey and DeFindex work added later.
 
